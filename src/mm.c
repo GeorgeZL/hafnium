@@ -566,14 +566,26 @@ static void mm_dump_table_recursive(struct mm_page_table *table, uint8_t level,
 				    int max_level)
 {
 	uint64_t i;
+    pte_t pte;
+    int block, valid;
+
+#define PTE_ADDR_MASK \
+	(((UINT64_C(1) << 48) - 1) & ~((UINT64_C(1) << PAGE_BITS) - 1))
 
 	for (i = 0; i < MM_PTE_PER_PAGE; i++) {
 		if (!arch_mm_pte_is_present(table->entries[i], level)) {
 			continue;
 		}
 
-		dlog("%*s%x: %x\n", 4 * (max_level - level), "", i,
-		     table->entries[i]);
+		//dlog("%*s%x: %x\n", 4 * (max_level - level), "", i,
+		//     table->entries[i]);
+
+        pte = table->entries[i];
+        valid = arch_mm_pte_is_valid(pte, level);
+        block = arch_mm_pte_is_block(pte, level);
+
+		dlog("%*s0x%x(%s) - level%d: addr - 0x%x\n", 4 * (max_level - level), "", i,
+		     (valid ? (block ? "B" : "M") : "I"), level, pte & PTE_ADDR_MASK);
 
 		if (arch_mm_pte_is_table(table->entries[i], level)) {
 			mm_dump_table_recursive(
@@ -582,6 +594,7 @@ static void mm_dump_table_recursive(struct mm_page_table *table, uint8_t level,
 				level - 1, max_level);
 		}
 	}
+#undef PTE_ADDR_MASK
 }
 
 /**

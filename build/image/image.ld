@@ -181,6 +181,14 @@ SECTIONS
 	/*
 	 * Make note of some useful values.
 	 */
+    . = ALIGN(0x1000);
+    .heap : {
+        heap_begin = .;
+        . = heap_begin + 0x200000;
+        . = ALIGN(0x200000);
+        heap_end = .;
+    }
+
 
 	/* Note the first page not used in the image. */
 	. = ALIGN(4096);

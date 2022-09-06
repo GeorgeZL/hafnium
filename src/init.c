@@ -115,11 +115,13 @@ static void partition_manifest_dump(struct partition_manifest *partition)
     dlog_info("\tboot_info: %d\n", partition->boot_info);
     dlog_info("\tboot order: 0x%x\n", partition->boot_order);
     dlog_info("\tmemory block count: %d\n", partition->mem_region_count);
+#if 0
     for (int i = 0; i < SP_MAX_MEMORY_REGIONS && i < partition->mem_region_count; i++) {
         dlog_info("\tmemory block-%d(%s): 0x%08x : 0x%08x, attr: 0x%08x\n", i, \
             partition->mem_regions[i].name.data, partition->mem_regions[i].base_address, \
             partition->mem_regions[i].page_count, partition->mem_regions[i].attributes);
     }
+#endif
 }
 
 static void hafnium_vm_dump(struct manifest_vm *vm, int index)

@@ -1,0 +1,20 @@
+# Copyright 2019 The Hafnium Authors.
+#
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/BSD-3-Clause.
+
+# aarch64 PL011 implementation of putchar for debugging.
+source_set("ns16550") {
+  sources = [
+    "ns16550.c",
+  ]
+
+  deps = [
+    "//src/arch/aarch64:arch",
+  ]
+
+  defines = [
+    "NS16550_BASE_ADDRESS=0x3100000",
+  ]
+}

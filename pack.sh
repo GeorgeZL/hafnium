@@ -7,6 +7,7 @@ NC='\033[0m'
 ROOT=$PWD
 IMGS=$ROOT/images
 DTBS=$IMGS/dtb
+LNX=$ROOT/third_party/linux/kbuild
 HAF_INITRD=$IMGS/hafnium_initrd
 PACK_FILE=$IMGS/file
 
@@ -58,10 +59,10 @@ function remove_hafnium_imgs()
 function update_rootfs()
 {
     InfoMsg "Update rootfs ..."
-    cp /opt/linux/kbuild/arch/arm64/boot/Image  $HAF_INITRD
+    cp $LNX/arch/arm64/boot/Image  $HAF_INITRD
 
     pushd $ROOT/driver/linux
-        ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KERNEL_PATH=/opt/linux/kbuild make
+        ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KERNEL_PATH=$LNX/ make
         cp *.ko $IMGS/rootfs/.
     popd
 

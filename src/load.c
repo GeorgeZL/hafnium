@@ -458,6 +458,7 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 	struct vcpu_locked vcpu_locked;
 	struct vcpu *vcpu;
 	ipaddr_t secondary_entry;
+	paddr_t boot_mem_addr;
 	bool ret;
 	paddr_t fdt_addr;
 	bool has_fdt;
@@ -471,8 +472,11 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 	 * the partition package has already been loaded prior to Hafnium
 	 * booting.
 	 */
+	boot_mem_addr = pa_init(
+		align_up(pa_addr(mem_begin), LINUX_ALIGNMENT) + LINUX_OFFSET);
+
 	if (!string_is_empty(&manifest_vm->kernel_filename)) {
-		if (!load_kernel(stage1_locked, mem_begin, mem_end, manifest_vm,
+		if (!load_kernel(stage1_locked, boot_mem_addr, mem_end, manifest_vm,
 				 cpio, ppool, &kernel_size)) {
 			dlog_error("Unable to load kernel.\n");
 			return false;
@@ -684,6 +688,9 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 					  manifest_vm->partition.ep_offset);
 	}
 
+	secondary_entry = ipa_init(
+			align_up(pa_addr(pa_from_ipa(secondary_entry)), LINUX_ALIGNMENT) + LINUX_OFFSET);
+
 	/*
 	 * Map hypervisor into the VM's page table. The hypervisor pages will
 	 * not be accessible from EL0 since it will not be marked for user
@@ -717,7 +724,7 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 	}
 
 	dlog_info("Loaded with %u vCPUs, entry at %#x.\n",
-		  manifest_vm->secondary.vcpu_count, pa_addr(mem_begin));
+		  manifest_vm->secondary.vcpu_count, ipa_addr(secondary_entry));
 
 	vcpu = vm_get_vcpu(vm, 0);
 

@@ -23,6 +23,7 @@
 #include "hf/panic.h"
 #include "hf/plat/interrupts.h"
 #include "hf/vm.h"
+#include "hf/std.h"
 
 #include "vmapi/hf/call.h"
 
@@ -466,6 +467,97 @@ static void smc_forwarder(const struct vm *vm, struct ffa_value *args)
  * and has to be forwarded down to EL3, or left as is to resume the current
  * vCPU.
  */
+
+static void strncpy(char *dist, char *src, int len)
+{
+    int _len = strnlen_s(src, len);
+
+    memcpy_s(dist, _len, src, _len);
+}
+
+#define FFA_FUNC_STR_CLEAR(name)    \
+    { \
+        index = (name) - 0x84000060; \
+        if (index < 100 && index >= 0) { \
+            str_ptr = g_ffa_func_str[index]; \
+            if (strnlen_s(str_ptr, 40) == 0) \
+                strncpy(str_ptr, #name, 40); \
+        } \
+    }
+
+static char g_ffa_func_str[100][40];
+static char g_ffa_none[] = "FFA_FUNC_NONE";
+
+static void ffa_str_init(void)
+{
+    int index = -1;
+    char *str_ptr = NULL;
+
+    FFA_FUNC_STR_CLEAR(FFA_ERROR_32);
+    FFA_FUNC_STR_CLEAR(FFA_SUCCESS_32);
+    FFA_FUNC_STR_CLEAR(FFA_SUCCESS_32);
+    FFA_FUNC_STR_CLEAR(FFA_INTERRUPT_32);
+    FFA_FUNC_STR_CLEAR(FFA_VERSION_32);
+    FFA_FUNC_STR_CLEAR(FFA_FEATURES_32);
+    FFA_FUNC_STR_CLEAR(FFA_RX_RELEASE_32);
+    FFA_FUNC_STR_CLEAR(FFA_RXTX_MAP_32);
+    FFA_FUNC_STR_CLEAR(FFA_RXTX_MAP_64);
+    FFA_FUNC_STR_CLEAR(FFA_RXTX_UNMAP_32);
+    FFA_FUNC_STR_CLEAR(FFA_PARTITION_INFO_GET_32);
+    FFA_FUNC_STR_CLEAR(FFA_ID_GET_32);
+    FFA_FUNC_STR_CLEAR(FFA_MSG_POLL_32);
+    FFA_FUNC_STR_CLEAR(FFA_MSG_WAIT_32);
+    FFA_FUNC_STR_CLEAR(FFA_YIELD_32);
+    FFA_FUNC_STR_CLEAR(FFA_RUN_32);
+    FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_32);
+    FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_DIRECT_REQ_32);
+    FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_DIRECT_REQ_64);
+    FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_DIRECT_RESP_32);
+    FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_DIRECT_RESP_64);
+    FFA_FUNC_STR_CLEAR(FFA_MEM_DONATE_32);
+    FFA_FUNC_STR_CLEAR(FFA_MEM_LEND_32);
+    FFA_FUNC_STR_CLEAR(FFA_MEM_SHARE_32);
+    FFA_FUNC_STR_CLEAR(FFA_MEM_RETRIEVE_REQ_32);
+    FFA_FUNC_STR_CLEAR(FFA_MEM_RETRIEVE_RESP_32);
+    FFA_FUNC_STR_CLEAR(FFA_MEM_RELINQUISH_32);
+    FFA_FUNC_STR_CLEAR(FFA_MEM_RECLAIM_32);
+    FFA_FUNC_STR_CLEAR(FFA_MEM_FRAG_RX_32);
+    FFA_FUNC_STR_CLEAR(FFA_MEM_FRAG_TX_32);
+    FFA_FUNC_STR_CLEAR(FFA_NORMAL_WORLD_RESUME);
+    FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_BITMAP_CREATE_32);
+    FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_BITMAP_DESTROY_32);
+    FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_BIND_32);
+    FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_UNBIND_32);
+    FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_SET_32);
+    FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_GET_32);
+    FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_INFO_GET_64);
+    FFA_FUNC_STR_CLEAR(FFA_RX_ACQUIRE_32);
+    FFA_FUNC_STR_CLEAR(FFA_SPM_ID_GET_32);
+    FFA_FUNC_STR_CLEAR(FFA_MSG_SEND2_32);
+    FFA_FUNC_STR_CLEAR(FFA_SECONDARY_EP_REGISTER_64);
+    FFA_FUNC_STR_CLEAR(FFA_MEM_PERM_GET_32);
+    FFA_FUNC_STR_CLEAR(FFA_MEM_PERM_SET_32);
+    FFA_FUNC_STR_CLEAR(FFA_MEM_PERM_GET_64);
+    FFA_FUNC_STR_CLEAR(FFA_MEM_PERM_SET_64);
+}
+
+char *ffa_func_str(int func)
+{
+    static uint32_t flag = 0;
+    int index = func - 0x84000060;
+    
+    if (!flag) {
+        flag = 1;
+        ffa_str_init();
+    }
+
+    if (index < 100 && index >= 0) {
+        return g_ffa_func_str[index];
+    }
+
+    return g_ffa_none;
+}
+
 static bool ffa_handler(struct ffa_value *args, struct vcpu *current,
 			struct vcpu **next)
 {
@@ -475,6 +567,10 @@ static bool ffa_handler(struct ffa_value *args, struct vcpu *current,
 	 * NOTE: When adding new methods to this handler update
 	 * api_ffa_features accordingly.
 	 */
+
+    dlog_info("[FFA_CALL] vmid: 0x%04x, phy_cpuid: 0x%04x, ffa func(0x%08x): %s\n",
+        current->vm->id, current->cpu->id, func, ffa_func_str(func));
+
 	switch (func) {
 	case FFA_VERSION_32:
 		*args = api_ffa_version(current, args->arg1);

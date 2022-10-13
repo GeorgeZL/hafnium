@@ -102,7 +102,7 @@ static void boot_param_dumps(struct boot_params *p)
     dlog_info("dts address: 0x%08x\n", p->kernel_arg);
 }
 
-static void partition_manifest_dump(struct partition_manifest *partition)
+static void partition_manifest_dump(const struct partition_manifest *partition)
 {
     dlog_info("\tffa version: 0x%08x\n", partition->ffa_version);
     dlog_info("\tuuid: %08x-%08x-%08x-%08x\n",
@@ -124,7 +124,7 @@ static void partition_manifest_dump(struct partition_manifest *partition)
 #endif
 }
 
-static void hafnium_vm_dump(struct manifest_vm *vm, int index)
+static void hafnium_vm_dump(const struct manifest_vm *vm, int index)
 {
     dlog_info("VM name: %s\n", vm->debug_name.data);
     dlog_info("kernel name: %s\n", vm->kernel_filename.data);
@@ -136,9 +136,9 @@ static void hafnium_vm_dump(struct manifest_vm *vm, int index)
     partition_manifest_dump(&vm->partition);
 }
 
-static void hafnium_manifest_dump(struct manifest *manifest)
+void hafnium_manifest_dump(const struct manifest *manifest)
 {
-    struct manifest_vm *vm = NULL;
+    const struct manifest_vm *vm = NULL;
 
     for (int i = 0; i < manifest->vm_count; i++) {
         vm = &manifest->vm[i];
@@ -229,9 +229,11 @@ void one_time_init(void)
 		panic("Could not initialize IOMMUs.");
 	}
 
+#if 0
 	if (!fdt_unmap(&fdt, mm_stage1_locked, &ppool)) {
 		panic("Unable to unmap FDT.");
 	}
+#endif
 
 	cpu_module_init(params.cpu_ids, params.cpu_count);
 

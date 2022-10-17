@@ -171,6 +171,8 @@ void one_time_init(void)
 
 	mm_stage1_locked = mm_lock_stage1();
 
+    mm_vm_dump(mm_stage1_locked.ptable);
+
 	if (!fdt_map(&fdt, mm_stage1_locked, plat_boot_flow_get_fdt_addr(),
 		     &ppool)) {
 		panic("Unable to map FDT.");
@@ -256,6 +258,9 @@ void one_time_init(void)
 	}
 
 	mm_defrag(mm_stage1_locked, &ppool);
+
+    mm_vm_dump(mm_stage1_locked.ptable);
+
 	mm_unlock_stage1(&mm_stage1_locked);
 
 	/* Initialise the API page pool. ppool will be empty from now on. */

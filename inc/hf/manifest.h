@@ -237,5 +237,6 @@ enum manifest_return_code parse_ffa_manifest(struct fdt *fdt,
 
 enum manifest_return_code sanity_check_ffa_manifest(struct manifest_vm *vm);
 void manifest_dump(struct manifest_vm *vm);
+void hafnium_manifest_dump(const struct manifest *manifest);
 
 const char *manifest_strerror(enum manifest_return_code ret_code);

@@ -1,31 +1,23 @@
-/*
- * Copyright 2019 The Hafnium Authors.
- *
- * Use of this source code is governed by a BSD-style
- * license that can be found in the LICENSE file or at
- * https://opensource.org/licenses/BSD-3-Clause.
- */
-
 /dts-v1/;
 
 / {
+
 	hypervisor {
 		compatible = "hafnium,hafnium";
 
 		vm1 {
 			debug_name = "Host VM";
 			kernel_filename = "Image";
-            ramdisk_filename = "initrd.img";
-
-            smc_whitelist_permissive;
+			ramdisk_filename = "initrd.img";
+			smc_whitelist_permissive;
 		};
 
-        vm2 {
-            debug_name = "Guest VM1";
-            vcpu_count = <2>;
+		vm2 {
+			debug_name = "Guest VM1";
+			vcpu_count = <0x01>;
             mem_size = <0x10000000>;
-            kernel_filename = "Image";
-            fdt_filename = "guest1.dtb";
-        };
+			kernel_filename = "Image.2";
+			fdt_filename = "guest1.dtb";
+		};
 	};
 };

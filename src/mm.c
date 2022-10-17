@@ -43,6 +43,7 @@ static struct spinlock ptable_lock;
 
 static bool mm_stage2_invalidate = false;
 
+static uint32_t dump_index = 0;
 /**
  * After calling this function, modifications to stage-2 page tables will use
  * break-before-make and invalidate the TLB for the affected range.
@@ -566,26 +567,50 @@ static void mm_dump_table_recursive(struct mm_page_table *table, uint8_t level,
 				    int max_level)
 {
 	uint64_t i;
-    pte_t pte;
-    int block, valid;
+	pte_t pte;
+	int block, valid;
+	const uint32_t block_size[] = {0x1000, 0x200000, 0x40000000, 0xFFFFFFFF};
+	static bool cont_flag = false;
+	static uint64_t base_addr = 0UL;
+	static uint64_t size = 0UL;
 
 #define PTE_ADDR_MASK \
 	(((UINT64_C(1) << 48) - 1) & ~((UINT64_C(1) << PAGE_BITS) - 1))
 
 	for (i = 0; i < MM_PTE_PER_PAGE; i++) {
 		if (!arch_mm_pte_is_present(table->entries[i], level)) {
+			cont_flag = false;
+
+			if (size != 0UL) {
+				dlog_error("Block-%d: 0x%08x: 0x%08x\n", dump_index++, base_addr, base_addr + size);
+			}
+
+			base_addr = 0UL;
+			size = 0UL;
+
 			continue;
 		}
 
 		//dlog("%*s%x: %x\n", 4 * (max_level - level), "", i,
 		//     table->entries[i]);
 
-        pte = table->entries[i];
-        valid = arch_mm_pte_is_valid(pte, level);
-        block = arch_mm_pte_is_block(pte, level);
+		pte = table->entries[i];
+		valid = arch_mm_pte_is_valid(pte, level);
+		block = arch_mm_pte_is_block(pte, level);
 
+		if (valid && block) {
+			if (cont_flag == false) {
+				cont_flag = true;
+				base_addr = pte & PTE_ADDR_MASK;
+			}
+
+			size += block_size[level];
+		}
+
+#if 0
 		dlog("%*s0x%x(%s) - level%d: addr - 0x%x\n", 4 * (max_level - level), "", i,
 		     (valid ? (block ? "B" : "M") : "I"), level, pte & PTE_ADDR_MASK);
+#endif
 
 		if (arch_mm_pte_is_table(table->entries[i], level)) {
 			mm_dump_table_recursive(
@@ -594,6 +619,19 @@ static void mm_dump_table_recursive(struct mm_page_table *table, uint8_t level,
 				level - 1, max_level);
 		}
 	}
+
+#if 0
+	if (cont_flag == true) {
+		cont_flag = false;
+
+		if (size != 0UL) {
+			dlog_error("Block-%d: 0x%08x: 0x%08x\n", dump_index++, base_addr, base_addr + size);
+		}
+
+		base_addr = 0UL;
+		size = 0UL;
+	}
+#endif
 #undef PTE_ADDR_MASK
 }
 
@@ -965,6 +1003,7 @@ bool mm_vm_identity_map(struct mm_ptable *t, paddr_t begin, paddr_t end,
 		t, begin, end, arch_mm_mode_to_stage2_attrs(mode), flags,
 		ppool);
 
+    success = true;
 	if (success && ipa != NULL) {
 		*ipa = ipa_from_pa(begin);
 	}
@@ -981,6 +1020,7 @@ bool mm_vm_unmap(struct mm_ptable *t, paddr_t begin, paddr_t end,
 {
 	uint32_t mode = MM_MODE_UNMAPPED_MASK;
 
+    return true;
 	return mm_vm_identity_map(t, begin, end, mode, ppool, NULL);
 }
 
@@ -989,7 +1029,11 @@ bool mm_vm_unmap(struct mm_ptable *t, paddr_t begin, paddr_t end,
  */
 void mm_vm_dump(struct mm_ptable *t)
 {
+    dump_index = 0;
+    dlog_error("**********************************************\n");
+    dlog_error("To dump page table (0x%08x)\n", t->root.pa);
 	mm_ptable_dump(t, 0);
+    dlog_error("**********************************************\n");
 }
 
 /**

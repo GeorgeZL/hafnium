@@ -8,6 +8,7 @@ ROOT=$PWD
 IMGS=$ROOT/images
 DTBS=$IMGS/dtb
 LNX=$ROOT/third_party/linux/kbuild
+LNX2=$ROOT/third_party/linux/kbuild2
 HAF_INITRD=$IMGS/hafnium_initrd
 PACK_FILE=$IMGS/file
 
@@ -39,7 +40,7 @@ function package_boot_image()
             fi
         done
     popd
-    cp $DTBS/manifest.dtb $HAF_INITRD
+    cp $DTBS/*.dtb $HAF_INITRD
 
     InfoMsg "create initrd for hafnium ..."
     pushd $HAF_INITRD
@@ -54,16 +55,21 @@ function remove_hafnium_imgs()
     pushd $HAF_INITRD
         #rm -fr *
     popd
+
+    pushd $ROOT/driver/linux
+        rm *.ko *.o *.mod*
+    popd
 }
 
 function update_rootfs()
 {
     InfoMsg "Update rootfs ..."
     cp $LNX/arch/arm64/boot/Image  $HAF_INITRD
+    cp $LNX2/arch/arm64/boot/Image  $HAF_INITRD/Image.2
 
     pushd $ROOT/driver/linux
         ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KERNEL_PATH=$LNX/ make
-        cp *.ko $IMGS/rootfs/.
+        cp *.ko $IMGS/rootfs/root/.
     popd
 
     pushd $IMGS/rootfs

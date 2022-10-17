@@ -31,7 +31,12 @@ FVP_Base_RevC-2xAEMvA  \
 --data cluster0.cpu0=images/dtb/fvp-base-gicv3-psci-1t.dtb@0x82000000 \
 --data cluster0.cpu0=images/initrd.img@0x84000000 \
 --data cluster0.cpu0=out/reference/aem_v8a_fvp_clang/hafnium.bin@0x80000000 \
---data cluster0.cpu0=./prebuilts/linux-aarch64/trusted-firmware-a-trusty/fvp/bl31.bin@0x04020000 -p $@
+--data cluster0.cpu0=./prebuilts/linux-aarch64/trusted-firmware-a-trusty/fvp/bl31.bin@0x04020000 \
+--iris-port 7100 -p $@ \
 
 
+#--data cluster0.cpu0=/home/fvp-base-gicv3-psci-1t.dtb@0x82000000 \
 #--data cluster0.cpu0=/home/packages/tools/atf/build/fvp/debug/bl31.bin@0x04020000 -p $@
+#--data cluster0.cpu0=out/reference/aem_v8a_fvp_clang/hafnium.bin@0x80000000 \
+#--data cluster0.cpu0=images/dtb/fvp-base-gicv3-psci-1t.dtb@0x82000000 \
+#--data cluster0.cpu0=images/initrd.img@0x84000000 \

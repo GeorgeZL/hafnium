@@ -1,0 +1,158 @@
+From b73e45f182ee55c91a1c6edac447121e3db61b97 Mon Sep 17 00:00:00 2001
+From: George Zhou <george.l.zhou@gmail.com>
+Date: Tue, 18 Oct 2022 07:07:57 +0800
+Subject: [PATCH] test
+
+---
+ main.c | 107 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 107 insertions(+)
+
+diff --git a/main.c b/main.c
+index ed5a9e6..2315876 100644
+--- a/main.c
++++ b/main.c
+@@ -46,6 +46,89 @@
+ #define PRIMARY_VM_ID HF_VM_ID_OFFSET
+ #define FIRST_SECONDARY_VM_ID (HF_VM_ID_OFFSET + 1)
+ 
++#define FFA_FUNC_STR_CLEAR(name)    \
++    { \
++        index = (name) - 0x84000060; \
++        if (index < 100 && index >= 0) { \
++            str_ptr = g_ffa_func_str[index]; \
++            if (strlen(str_ptr) == 0) \
++                strncpy(str_ptr, #name, 40); \
++        } \
++    }
++
++static char g_ffa_func_str[100][40];
++static char g_ffa_none[] = "FFA_FUNC_NONE";
++
++static void ffa_str_init(void)
++{
++    int index = -1;
++    char *str_ptr = NULL;
++
++    FFA_FUNC_STR_CLEAR(FFA_ERROR_32);
++    FFA_FUNC_STR_CLEAR(FFA_SUCCESS_32);
++    FFA_FUNC_STR_CLEAR(FFA_SUCCESS_32);
++    FFA_FUNC_STR_CLEAR(FFA_INTERRUPT_32);
++    FFA_FUNC_STR_CLEAR(FFA_VERSION_32);
++    FFA_FUNC_STR_CLEAR(FFA_FEATURES_32);
++    FFA_FUNC_STR_CLEAR(FFA_RX_RELEASE_32);
++    FFA_FUNC_STR_CLEAR(FFA_RXTX_MAP_32);
++    FFA_FUNC_STR_CLEAR(FFA_RXTX_MAP_64);
++    FFA_FUNC_STR_CLEAR(FFA_RXTX_UNMAP_32);
++    FFA_FUNC_STR_CLEAR(FFA_PARTITION_INFO_GET_32);
++    FFA_FUNC_STR_CLEAR(FFA_ID_GET_32);
++    FFA_FUNC_STR_CLEAR(FFA_MSG_POLL_32);
++    FFA_FUNC_STR_CLEAR(FFA_MSG_WAIT_32);
++    FFA_FUNC_STR_CLEAR(FFA_YIELD_32);
++    FFA_FUNC_STR_CLEAR(FFA_RUN_32);
++    FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_32);
++    FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_DIRECT_REQ_32);
++    FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_DIRECT_REQ_64);
++    FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_DIRECT_RESP_32);
++    FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_DIRECT_RESP_64);
++    FFA_FUNC_STR_CLEAR(FFA_MEM_DONATE_32);
++    FFA_FUNC_STR_CLEAR(FFA_MEM_LEND_32);
++    FFA_FUNC_STR_CLEAR(FFA_MEM_SHARE_32);
++    FFA_FUNC_STR_CLEAR(FFA_MEM_RETRIEVE_REQ_32);
++    FFA_FUNC_STR_CLEAR(FFA_MEM_RETRIEVE_RESP_32);
++    FFA_FUNC_STR_CLEAR(FFA_MEM_RELINQUISH_32);
++    FFA_FUNC_STR_CLEAR(FFA_MEM_RECLAIM_32);
++    FFA_FUNC_STR_CLEAR(FFA_MEM_FRAG_RX_32);
++    FFA_FUNC_STR_CLEAR(FFA_MEM_FRAG_TX_32);
++    FFA_FUNC_STR_CLEAR(FFA_NORMAL_WORLD_RESUME);
++    FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_BITMAP_CREATE_32);
++    FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_BITMAP_DESTROY_32);
++    FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_BIND_32);
++    FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_UNBIND_32);
++    FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_SET_32);
++    FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_GET_32);
++    FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_INFO_GET_64);
++    FFA_FUNC_STR_CLEAR(FFA_RX_ACQUIRE_32);
++    FFA_FUNC_STR_CLEAR(FFA_SPM_ID_GET_32);
++    FFA_FUNC_STR_CLEAR(FFA_MSG_SEND2_32);
++    FFA_FUNC_STR_CLEAR(FFA_SECONDARY_EP_REGISTER_64);
++    FFA_FUNC_STR_CLEAR(FFA_MEM_PERM_GET_32);
++    FFA_FUNC_STR_CLEAR(FFA_MEM_PERM_SET_32);
++    FFA_FUNC_STR_CLEAR(FFA_MEM_PERM_GET_64);
++    FFA_FUNC_STR_CLEAR(FFA_MEM_PERM_SET_64);
++}
++
++char *ffa_func_str(int func)
++{
++    static uint32_t flag = 0;
++    int index = func - 0x84000060;
++    
++    if (!flag) {
++        flag = 1;
++        ffa_str_init();
++    }
++
++    if (index < 100 && index >= 0) {
++        return g_ffa_func_str[index];
++    }
++
++    return g_ffa_none;
++}
++
+ struct hf_vcpu {
+ 	struct hf_vm *vm;
+ 	ffa_vcpu_index_t vcpu_index;
+@@ -362,6 +445,11 @@ static int hf_vcpu_thread(void *data)
+ 		/* Call into Hafnium to run vcpu. */
+ 		ret = ffa_run(vcpu->vm->id, vcpu->vcpu_index);
+ 
++        pr_err("[FFA_API] ffa_run return func: %s(0x%08x)\n", ffa_func_str(ret.func), ret.func);
++
++        //HACK: to break loop for ping 
++        break;
++
+ 		switch (ret.func) {
+ 		/* Preempted, or wants to wake up another vCPU. */
+ 		case FFA_INTERRUPT_32:
+@@ -445,6 +533,8 @@ static int hf_vcpu_thread(void *data)
+ 			}
+ 			break;
+ 		}
++
++        usleep_range(10000000, 10000001);
+ 	}
+ 
+ 	return 0;
+@@ -970,6 +1060,21 @@ static void print_ffa_error(struct ffa_value ffa_ret)
+ 		pr_err("Unexpected FF-A function %#x\n", ffa_ret.func);
+ }
+ 
++static void dump_partition_infos(const struct ffa_partition_info *infos, int32_t secondary_vm_count)
++{
++    const struct ffa_partition_info *vm_info = NULL;
++    int i = 0;
++
++    pr_err("++%d partition infos to dump:\n",secondary_vm_count + 1);
++    for (i = 0; i < secondary_vm_count + 1; i++) {
++        vm_info = infos + i;
++        pr_err("information for vm-%d(uuid: 0x%x-0x%x-0x%x-0x%x)\n", vm_info->vm_id,
++            vm_info->uuid.uuid[0], vm_info->uuid.uuid[1], vm_info->uuid.uuid[2], vm_info->uuid.uuid[3]);
++        pr_err("\tvcpu count: %d\n", vm_info->vcpu_count);
++        pr_err("\tparition properties: 0x%08x\n", vm_info->properties);
++    }
++}
++
+ /**
+  * Initializes the Hafnium driver by creating a thread for each vCPU of each
+  * virtual machine.
+@@ -1043,6 +1148,8 @@ static int __init hf_init(void)
+ 		goto fail_with_cleanup;
+ 	}
+ 
++    dump_partition_infos(partition_info, secondary_vm_count);
++
+ 	/* Only track the secondary VMs. */
+ 	hf_vms = kmalloc_array(secondary_vm_count, sizeof(struct hf_vm),
+ 			       GFP_KERNEL);
+-- 
+2.25.1
+

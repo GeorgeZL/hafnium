@@ -385,6 +385,8 @@ static bool load_primary(struct mm_stage1_locked stage1_locked,
 	ret = true;
 
 out:
+    dlog_error("--->>>>Dump primary S2 page table:\n");
+    mm_vm_dump(&vm_locked.vm->ptable);
 	vm_unlock(&vm_locked);
 
 	return ret;

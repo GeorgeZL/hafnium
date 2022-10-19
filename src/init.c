@@ -187,6 +187,9 @@ void one_time_init(void)
 			  pa_addr(params.mem_ranges[i].end) - 1);
 	}
 
+    params.initrd_begin.pa = 0x84000000;
+    params.initrd_end.pa = 0x90000000;
+
 	/*
 	 * Hafnium manifest is either gathered from the ramdisk or passed
 	 * directly to Hafnium entry point by the earlier bootloader stage.
@@ -225,9 +228,11 @@ void one_time_init(void)
 		      manifest_strerror(manifest_ret));
 	}
 
+#if 0
 	if (!plat_iommu_init(&fdt, mm_stage1_locked, &ppool)) {
 		panic("Could not initialize IOMMUs.");
 	}
+#endif
 
 	if (!fdt_unmap(&fdt, mm_stage1_locked, &ppool)) {
 		panic("Unable to unmap FDT.");

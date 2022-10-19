@@ -39,16 +39,16 @@ uintreg_t get_hcr_el2_value(ffa_vm_id_t vm_id, bool is_el0_partition)
 	 * certain features, e.g., RAS, it should emulate access to these
 	 * registers to report the correct set of features supported.
 	 */
-	hcr_el2_value |= HCR_EL2_TID3;
+	//hcr_el2_value |= HCR_EL2_TID3;
 
 	/* Execution state for EL1 is AArch64. */
 	hcr_el2_value |= HCR_EL2_RW;
 
 	/* Trap implementation registers and functionality. */
-	hcr_el2_value |= HCR_EL2_TACR | HCR_EL2_TIDCP;
+	//hcr_el2_value |= HCR_EL2_TACR | HCR_EL2_TIDCP;
 
 	/* Trap SMC instructions. */
-	hcr_el2_value |= HCR_EL2_TSC;
+	//hcr_el2_value |= HCR_EL2_TSC;
 
 	/*
 	 * Translation table access made as part of a stage 1 translation
@@ -71,7 +71,7 @@ uintreg_t get_hcr_el2_value(ffa_vm_id_t vm_id, bool is_el0_partition)
 	hcr_el2_value |= HCR_EL2_TSW;
 
 	/* Do *not* trap PAuth. APK and API bits *disable* trapping when set. */
-	hcr_el2_value |= HCR_EL2_APK | HCR_EL2_API;
+	//hcr_el2_value |= HCR_EL2_APK | HCR_EL2_API;
 
 	/* Baseline values for all secondary VMs. */
 	if (vm_id != HF_PRIMARY_VM_ID) {

@@ -798,6 +798,7 @@ skip_vhe_restore:
 #endif
 
 	/* Restore GIC registers. */
+#if 0
 #if GIC_VERSION == 3 || GIC_VERSION == 4
 	/* Offset is too large, so start from a new base. */
 	add x2, x0, #VCPU_GIC
@@ -805,6 +806,7 @@ skip_vhe_restore:
 	ldp x3, x4, [x2, #16 * 0]
 	msr ich_hcr_el2, x3
 	msr icc_sre_el2, x4
+#endif
 #endif
 
 	/*

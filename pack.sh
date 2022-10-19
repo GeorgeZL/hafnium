@@ -64,6 +64,12 @@ function remove_hafnium_imgs()
 function update_rootfs()
 {
     InfoMsg "Update rootfs ..."
+
+    if [ ! -d $IMGS/rootfs ]; then
+        ErrMsg "Please install the RAMFS for OS in '$IMGS/rootfs'"
+        exit 1
+    fi
+
     cp $LNX/arch/arm64/boot/Image  $HAF_INITRD
     cp $LNX2/arch/arm64/boot/Image  $HAF_INITRD/Image.2
 

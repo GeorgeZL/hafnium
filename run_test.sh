@@ -14,12 +14,14 @@ FVP_Base_RevC-2xAEMvA  \
 -C cache_state_modelled=0  \
 -C bp.vis.disable_visualisation=true  \
 -C bp.vis.rate_limit-enable=false  \
--C bp.terminal_0.start_telnet=true  \
--C bp.terminal_1.start_telnet=true  \
+-C bp.terminal_0.start_telnet=false  \
+-C bp.terminal_1.start_telnet=false  \
 -C bp.terminal_2.start_telnet=false  \
 -C bp.terminal_3.start_telnet=false  \
 -C bp.pl011_uart0.untimed_fifos=1  \
 -C bp.pl011_uart0.unbuffered_output=1  \
+-C bp.smsc_91c111.enabled=true \
+-C bp.hostbridge.userNetworking=true \
 -C cluster0.cpu0.RVBAR=0x04020000  \
 -C cluster0.cpu1.RVBAR=0x04020000  \
 -C cluster0.cpu2.RVBAR=0x04020000 \

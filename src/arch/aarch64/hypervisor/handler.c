@@ -127,6 +127,7 @@ void begin_restoring_state(struct vcpu *vcpu)
 	 * a spurious timer interrupt. This could be a problem if the interrupt
 	 * is configured as edge-triggered, as it would then be latched in.
 	 */
+    dlog_info("begin_restoring_state\n");
 	if (has_vhe_support()) {
 		write_msr(MSR_CNTV_CTL_EL02, 0);
 		write_msr(MSR_CNTV_CVAL_EL02,
@@ -148,6 +149,14 @@ void begin_restoring_state(struct vcpu *vcpu)
 		write_msr(cnthp_ctl_el2, 0);
 		write_msr(cnthp_cval_el2, 0);
 	}
+    dlog_info("begin_restoring_state done\n");
+}
+
+void boot_test(void)
+{
+    static int index = 0;
+
+    dlog_info("boot_test index: %d\n", index++);
 }
 
 /**
@@ -189,8 +198,15 @@ static void invalidate_vm_tlb(void)
  */
 void maybe_invalidate_tlb(struct vcpu *vcpu)
 {
-	size_t current_cpu_index = cpu_index(vcpu->cpu);
-	ffa_vcpu_index_t new_vcpu_index = vcpu_index(vcpu);
+	size_t current_cpu_index = 0;
+	ffa_vcpu_index_t new_vcpu_index = 0;
+
+    dlog_info("maybe_invalidate_tlb: cpu(vcpu->cpu): 0x%08x\n", vcpu->cpu);
+
+    current_cpu_index = cpu_index(vcpu->cpu);
+    dlog_info("current_cpu_index: %d\n", current_cpu_index);
+
+    new_vcpu_index = vcpu_index(vcpu);
 
 	if (vcpu->vm->arch.last_vcpu_on_cpu[current_cpu_index] !=
 	    new_vcpu_index) {
@@ -204,6 +220,7 @@ void maybe_invalidate_tlb(struct vcpu *vcpu)
 		vcpu->vm->arch.last_vcpu_on_cpu[current_cpu_index] =
 			new_vcpu_index;
 	}
+    dlog_info("maybe_invalidate_tlb done\n");
 }
 
 noreturn void irq_current_exception_noreturn(uintreg_t elr, uintreg_t spsr)

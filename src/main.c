@@ -23,6 +23,7 @@ struct vcpu *cpu_main(struct cpu *c)
 	struct vm *first_boot;
 	struct vcpu *vcpu;
 
+    dlog_info("main cpu init\n");
 	/*
 	 * This returns the PVM in the normal world and the first
 	 * booted Secure Partition in the secure world.
@@ -44,5 +45,6 @@ struct vcpu *cpu_main(struct cpu *c)
 
 	vm_set_boot_info_gp_reg(first_boot, vcpu);
 
+    dlog_info("main cpu init done\n");
 	return vcpu;
 }

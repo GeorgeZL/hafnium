@@ -551,6 +551,15 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 		goto out;
 	}
 
+	/* map the device region */
+	if (!vm_identity_map(vm_locked, pa_init(0), pa_init(0x80000000),
+		MM_MODE_R | MM_MODE_W | MM_MODE_D, ppool, NULL)) {
+		dlog_error(
+			"Unable to initialise address space for Secondary VM.\n");
+		ret = false;
+		goto out;
+	}
+
 	if (manifest_vm->is_ffa_partition) {
 		int j = 0;
 		paddr_t region_begin;

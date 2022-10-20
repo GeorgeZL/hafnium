@@ -9,8 +9,8 @@
 	#size-cells = <0x2>;
 
 	chosen {
-        bootargs = "console=ttyAMA0,115200 earlyprintk";
-        stdout-path = "serial0:115200n8";
+        bootargs = "console=ttyAMA1,115200 earlycon=pl011,mmio32,0x1c0a0000";
+        stdout-path = "serial1:115200n8";
 	};
 
 	aliases {

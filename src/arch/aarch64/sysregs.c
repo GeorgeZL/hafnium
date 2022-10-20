@@ -105,7 +105,7 @@ uintreg_t get_hcr_el2_value(ffa_vm_id_t vm_id, bool is_el0_partition)
 		 * Barrier instructions (esb) on hypervisor entry/exit, or
 		 * implicit barriers (SCTLR_EL2_IESB is set).
 		 */
-		hcr_el2_value |= HCR_EL2_IMO | HCR_EL2_FMO;
+		//hcr_el2_value |= HCR_EL2_IMO | HCR_EL2_FMO;
 
 #if SECURE_WORLD == 0
 		/* Trap wait for event/interrupt instructions. */

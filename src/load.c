@@ -474,6 +474,7 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 	 * the partition package has already been loaded prior to Hafnium
 	 * booting.
 	 */
+
     boot_mem_addr = pa_init(
             align_up(pa_addr(mem_begin), LINUX_ALIGNMENT) + LINUX_OFFSET);
 
@@ -550,6 +551,16 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 		ret = false;
 		goto out;
 	}
+
+    /* map the device region */
+    if (!vm_identity_map(
+                vm_locked, pa_init(0), pa_init(0x80000000),
+                MM_MODE_R | MM_MODE_W | MM_MODE_D, ppool, NULL)) {
+        dlog_error(
+                "Unable to initialise address space for Secondary VM.\n");
+        ret = false;
+        goto out;
+    }
 
 	if (manifest_vm->is_ffa_partition) {
 		int j = 0;

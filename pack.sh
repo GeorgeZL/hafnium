@@ -70,6 +70,11 @@ function update_rootfs()
         exit 1
     fi
 
+    if [ ! -f $LNX/arch/arm64/boot/Image ] || [ ! -f $LNX2/arch/arm64/boot/Image ]; then
+        ErrMsg "Kernel Images has not found"
+        exit 1
+    fi
+
     cp $LNX/arch/arm64/boot/Image  $HAF_INITRD
     cp $LNX2/arch/arm64/boot/Image  $HAF_INITRD/Image.2
 

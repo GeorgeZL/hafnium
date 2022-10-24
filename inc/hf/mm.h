@@ -22,6 +22,7 @@
 /* clang-format off */
 
 #define PAGE_SIZE (1 << PAGE_BITS)
+#define MB_SIZE (1 << 20)
 #define MM_PTE_PER_PAGE (PAGE_SIZE / sizeof(pte_t))
 
 /* The following are arch-independent page mapping modes. */

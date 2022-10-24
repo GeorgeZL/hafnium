@@ -446,6 +446,60 @@ static bool load_secondary_fdt(struct mm_stage1_locked stage1_locked,
 	return true;
 }
 
+/**
+ * Loads the secondary VM's FDT.
+ * Stores the total allocated size for the FDT in fdt_allocated_size (if
+ * fdt_allocated_size is not NULL). The allocated size includes additional space
+ * for potential patching.
+ */
+static bool load_secondary_ramdisk(struct mm_stage1_locked stage1_locked,
+			       paddr_t end, size_t ramdisk_max_size,
+			       const struct manifest_vm *manifest_vm,
+			       const struct memiter *cpio, struct mpool *ppool,
+			       paddr_t *ramdisk_addr, size_t *ramdisk_allocated_size)
+{
+	struct memiter ramdisk;
+	size_t allocated_size;
+
+	CHECK(!string_is_empty(&manifest_vm->secondary.ramdisk_filename));
+
+	if (!cpio_get_file(cpio, &manifest_vm->secondary.ramdisk_filename, &ramdisk)) {
+		dlog_error("Cannot open the secondary VM's Ramdisk.\n");
+		return false;
+	}
+
+	/*
+	 * Ensure the FDT has one additional page at the end for patching,
+	 * and align it to the page boundary.
+	 */
+	allocated_size = align_up(memiter_size(&ramdisk) + MB_SIZE, MB_SIZE);
+
+	if (allocated_size > ramdisk_max_size) {
+		dlog_error(
+			"RAMDISK allocated space (%u) is more than the specified "
+			"maximum to use (%u).\n",
+			allocated_size, ramdisk_max_size);
+		return false;
+	}
+
+	/* Load the FDT to the end of the VM's allocated memory space. */
+	*ramdisk_addr = pa_init(pa_addr(pa_sub(end, allocated_size)));
+
+	dlog_info("Loading secondary RAMDISK of allocated size 0x%x at 0x%x.\n",
+		  allocated_size, pa_addr(*ramdisk_addr));
+
+	if (!copy_to_unmapped(stage1_locked, *ramdisk_addr, &ramdisk, ppool)) {
+		dlog_error("Unable to copy RMADISK.\n");
+		return false;
+	}
+
+	if (ramdisk_allocated_size) {
+		*ramdisk_allocated_size = allocated_size;
+	}
+
+	return true;
+}
+
 /*
  * Loads a secondary VM.
  */
@@ -497,10 +551,21 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 
 		size_t fdt_allocated_size;
 
+        const size_t ramdisk_max_size = MB_SIZE * 128;
+        size_t ramdisk_allocated_size;
+        paddr_t ramdisk_addr;
+
 		if (!load_secondary_fdt(stage1_locked, mem_end, fdt_max_size,
 					manifest_vm, cpio, ppool, &fdt_addr,
 					&fdt_allocated_size)) {
 			dlog_error("Unable to load FDT.\n");
+			return false;
+		}
+
+		if (!load_secondary_ramdisk(stage1_locked, mem_end, ramdisk_max_size,
+					manifest_vm, cpio, ppool, &ramdisk_addr,
+					&ramdisk_allocated_size)) {
+			dlog_error("Unable to load RAMDISK.\n");
 			return false;
 		}
 
@@ -900,7 +965,6 @@ bool load_vms(struct mm_stage1_locked stage1_locked,
 		return false;
 	}
 
-    hafnium_manifest_dump(manifest);
 	static_assert(
 		sizeof(mem_ranges_available) == sizeof(params->mem_ranges),
 		"mem_range arrays must be the same size for memcpy.");

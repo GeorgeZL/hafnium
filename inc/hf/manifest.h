@@ -189,6 +189,9 @@ struct manifest_vm {
 			uint64_t mem_size;
 			ffa_vcpu_count_t vcpu_count;
 			struct string fdt_filename;
+			struct string ramdisk_filename;
+            uint64_t initrd_address;
+            uint64_t fdt_address;
 		} secondary;
 	};
 };
@@ -236,7 +239,7 @@ enum manifest_return_code parse_ffa_manifest(struct fdt *fdt,
 					     struct fdt_node *boot_info);
 
 enum manifest_return_code sanity_check_ffa_manifest(struct manifest_vm *vm);
-void manifest_dump(struct manifest_vm *vm);
+/* void manifest_dump(struct manifest_vm *vm); */
 void hafnium_manifest_dump(const struct manifest *manifest);
 
 const char *manifest_strerror(enum manifest_return_code ret_code);

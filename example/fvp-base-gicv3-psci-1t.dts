@@ -13,10 +13,9 @@
 	};
 
 	aliases {
-		serial0 = "/smb@0,0/motherboard/iofpga@3,00000000/uart@90000";
-		serial1 = "/smb@0,0/motherboard/iofpga@3,00000000/uart@a0000";
-		serial2 = "/smb@0,0/motherboard/iofpga@3,00000000/uart@b0000";
-		serial3 = "/smb@0,0/motherboard/iofpga@3,00000000/uart@c0000";
+		serial0 = "/smb@0,0/motherboard/iofpga@3,00000000/uart@a0000";
+		serial1 = "/smb@0,0/motherboard/iofpga@3,00000000/uart@b0000";
+		serial2 = "/smb@0,0/motherboard/iofpga@3,00000000/uart@c0000";
 	};
 
 	psci {
@@ -349,14 +348,6 @@
 					clock-names = "KMIREFCLK", "apb_pclk";
 				};
 
-				uart@90000 {
-					compatible = "arm,pl011", "arm,primecell";
-					reg = <0x90000 0x1000>;
-					interrupts = <0x0 0x5 0x4>;
-					clocks = <0xf 0xf>;
-					clock-names = "uartclk", "apb_pclk";
-				};
-
 				uart@a0000 {
 					compatible = "arm,pl011", "arm,primecell";
 					reg = <0xa0000 0x1000>;
@@ -493,7 +484,7 @@
 
 / {
     chosen {
-        bootargs = "earlycon=pl011,mmio32,0x1c090000";
+        bootargs = "earlycon=pl011,mmio32,0x1c0a0000";
         stdout-path = "serial0:115200n8";
         linux,initrd-start = <0x84000000>;
         linux,initrd-end = <0x90000000>;

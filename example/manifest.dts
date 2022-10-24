@@ -18,6 +18,9 @@
             mem_size = <0x10000000>;
 			kernel_filename = "Image.2";
 			fdt_filename = "guest1.dtb";
+            ramdisk_filename = "initrd.img";
+            fdt_address = <0x1024>;
+            initrd_address = <0x2048>;
 		};
 	};
 };

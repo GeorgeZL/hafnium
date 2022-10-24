@@ -102,49 +102,6 @@ static void boot_param_dumps(struct boot_params *p)
 	dlog_info("dts address: 0x%08x\n", p->kernel_arg);
 }
 
-static void partition_manifest_dump(const struct partition_manifest *partition)
-{
-	dlog_info("\tffa version: 0x%08x\n", partition->ffa_version);
-	dlog_info("\tuuid: %08x-%08x-%08x-%08x\n",
-			partition->uuid.uuid[0], partition->uuid.uuid[1], partition->uuid.uuid[2], partition->uuid.uuid[3]);
-	dlog_info("\tffa vmid: 0x%08x\n", partition->id);
-	dlog_info("\tvcpu count: 0x%08x\n", partition->execution_ctx_count);
-	dlog_info("\truntime el: 0x%x\n", partition->run_time_el);
-	dlog_info("\tload addr: 0x%08x\n", partition->load_addr);
-	dlog_info("\tep offset: 0x%08x\n", partition->ep_offset);
-	dlog_info("\tboot_info: %d\n", partition->boot_info);
-	dlog_info("\tboot order: 0x%x\n", partition->boot_order);
-	dlog_info("\tmemory block count: %d\n", partition->mem_region_count);
-	for (int i = 0; i < SP_MAX_MEMORY_REGIONS && i < partition->mem_region_count; i++) {
-		dlog_info("\tmemory block-%d(%s): 0x%08x : 0x%08x, attr: 0x%08x\n", i, \
-				partition->mem_regions[i].name.data, partition->mem_regions[i].base_address, \
-				partition->mem_regions[i].page_count, partition->mem_regions[i].attributes);
-	}
-}
-
-static void hafnium_vm_dump(const struct manifest_vm *vm, int index)
-{
-	dlog_info("VM name: %s\n", vm->debug_name.data);
-	dlog_info("kernel name: %s\n", vm->kernel_filename.data);
-	if (!index) {
-		dlog_info("ramdisk name: %s\n", vm->primary.ramdisk_filename.data);
-		dlog_info("boot addr: 0x%08x\n", vm->primary.boot_address);
-	}
-
-	partition_manifest_dump(&vm->partition);
-}
-
-void hafnium_manifest_dump(const struct manifest *manifest)
-{
-	const struct manifest_vm *vm = NULL;
-
-	for (int i = 0; i < manifest->vm_count; i++) {
-		vm = &manifest->vm[i];
-		hafnium_vm_dump(vm, i);
-		dlog_info("\n");
-	}
-}
-
 /**
  * Performs one-time initialisation of the hypervisor.
  */
@@ -242,7 +199,6 @@ void one_time_init(void)
 		panic("Could not initialize Interrupt Controller driver.");
 	}
 
-	hafnium_manifest_dump(&manifest);
 	/* Load all VMs. */
 	update.reserved_ranges_count = 0;
 	if (!load_vms(mm_stage1_locked, &manifest, &cpio, &params, &update,

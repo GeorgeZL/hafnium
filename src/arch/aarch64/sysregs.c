@@ -85,7 +85,7 @@ uintreg_t get_hcr_el2_value(ffa_vm_id_t vm_id, bool is_el0_partition)
 		 * Broadcast instructions related to invalidating the TLB within
 		 * the Inner Shareable domain.
 		 */
-		//hcr_el2_value |= HCR_EL2_FB;
+		hcr_el2_value |= HCR_EL2_FB;
 
 		if (!has_ras_support()) {
 			/*
@@ -95,7 +95,7 @@ uintreg_t get_hcr_el2_value(ffa_vm_id_t vm_id, bool is_el0_partition)
 			 * overhead. RAS is mandatory from Armv8.2, so this
 			 * should not be common.
 			 */
-			//hcr_el2_value |= HCR_EL2_AMO;
+			hcr_el2_value |= HCR_EL2_AMO;
 		}
 
 		/*
@@ -110,6 +110,7 @@ uintreg_t get_hcr_el2_value(ffa_vm_id_t vm_id, bool is_el0_partition)
 #if SECURE_WORLD == 0
 		/* Trap wait for event/interrupt instructions. */
 		hcr_el2_value |= HCR_EL2_TWE | HCR_EL2_TWI;
+
 #endif
 	}
 

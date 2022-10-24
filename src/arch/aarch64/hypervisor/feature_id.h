@@ -45,10 +45,6 @@
 
 bool feature_id_is_register_access(uintreg_t esr_el2);
 
-bool feature_id_is_icc_access(uintreg_t esr);
-
 bool feature_id_process_access(struct vcpu *vcpu, uintreg_t esr_el2);
-
-bool feature_id_icc_access(struct vcpu *vcpu, uintreg_t esr);
 
 void feature_set_traps(struct vm *vm, struct arch_regs *regs);

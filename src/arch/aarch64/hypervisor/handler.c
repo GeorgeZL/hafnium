@@ -1336,7 +1336,6 @@ struct vcpu *sync_lower_exception(uintreg_t esr, uintreg_t far)
 	 * The exception wasn't handled. Inject to the VM to give it chance to
 	 * handle as an unknown exception.
 	 */
-    dlog_notice("%s:%d\n", __func__, __LINE__);
 	inject_el1_unknown_exception(vcpu, esr);
 
 	/* Schedule the same VM to continue running. */
@@ -1373,12 +1372,7 @@ void handle_system_register_access(uintreg_t esr_el2)
 			inject_el1_unknown_exception(vcpu, esr_el2);
 			return;
 		}
-    } else if (feature_id_is_icc_access(esr_el2)) {
-        if (!feature_id_icc_access(vcpu, esr_el2)) {
-			inject_el1_unknown_exception(vcpu, esr_el2);
-			return;
-        }
-    } else {
+	} else {
 		inject_el1_unknown_exception(vcpu, esr_el2);
 		return;
 	}

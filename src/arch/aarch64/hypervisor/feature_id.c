@@ -60,31 +60,7 @@
 	X(ID_AA64MMFR1_EL1  , 3, 0,  0,  7, 1) \
 	X(ID_AA64MMFR2_EL1  , 3, 0,  0,  7, 2)
 
-#define FEATURE_ID_ICC_REGISTERS_READ       \
-    X(ICC_IAR0_EL1		, 3, 0, 12, 8, 0)   \
-    X(ICC_EOIR0_EL1		, 3, 0, 12, 8, 1)   \
-    X(ICC_HPPIR0_EL1	, 3, 0, 12, 8, 2)   \
-    X(ICC_BPR0_EL1		, 3, 0, 12, 8, 3)   \
-    X(ICC_DIR_EL1		, 3, 0, 12, 11, 1)  \
-    X(ICC_RPR_EL1		, 3, 0, 12, 11, 3)  \
-    X(ICC_SGI1R_EL1		, 3, 0, 12, 11, 5)  \
-    X(ICC_ASGI1R_EL1	, 3, 0, 12, 11, 6)  \
-    X(ICC_SGI0R_EL1		, 3, 0, 12, 11, 7)  \
-    X(ICC_IAR1_EL1		, 3, 0, 12, 12, 0)  \
-    X(ICC_EOIR1_EL1		, 3, 0, 12, 12, 1)  \
-    X(ICC_HPPIR1_EL1	, 3, 0, 12, 12, 2)  \
-    X(ICC_BPR1_EL1		, 3, 0, 12, 12, 3)  \
-    X(ICC_CTLR_EL1		, 3, 0, 12, 12, 4)  \
-    X(ICC_SRE_EL1		, 3, 0, 12, 12, 5)  \
-    X(ICC_IGRPEN0_EL1	, 3, 0, 12, 12, 6)  \
-    X(ICC_IGRPEN1_EL1	, 3, 0, 12, 12, 7)
-
 /* clang-format on */
-enum {
-#define X(reg_name, op0, op1, crn, crm, op2)    \
-    reg_name##_ENC = GET_ISS_ENCODING(op0, op1, crn, crm, op2),
-    FEATURE_ID_ICC_REGISTERS_READ
-};
 
 enum {
 #define X(reg_name, op0, op1, crn, crm, op2) \
@@ -92,7 +68,6 @@ enum {
 	FEATURE_ID_REGISTERS_READ
 #undef X
 };
-
 
 /**
  * Returns true if the ESR register shows an access to a feature ID group 3
@@ -107,16 +82,6 @@ bool feature_id_is_register_access(uintreg_t esr)
 
 	/* From the Arm Architecture Reference Manual Table D12-2. */
 	return op0 == 3 && op1 == 0 && crn == 0 && crm >= 1 && crm <= 7;
-}
-
-bool feature_id_is_icc_access(uintreg_t esr)
-{
-	uintreg_t op0 = GET_ISS_OP0(esr);
-	uintreg_t op1 = GET_ISS_OP1(esr);
-	uintreg_t crn = GET_ISS_CRN(esr);
-	uintreg_t crm = GET_ISS_CRM(esr);
-
-    return op0 == 3 && op1 == 0 && crn == 12 && crm >= 8 && crm <= 12;
 }
 
 /**
@@ -270,48 +235,6 @@ void feature_set_traps(struct vm *vm, struct arch_regs *regs)
 		vm->arch.tid3_masks.id_aa64isar1_el1 &= ~ID_AA64ISAR1_EL1_API;
 		vm->arch.tid3_masks.id_aa64isar1_el1 &= ~ID_AA64ISAR1_EL1_APA;
 	}
-}
-
-bool feature_id_icc_access(struct vcpu *vcpu, uintreg_t esr)
-{
-    uintreg_t sys_register = GET_ISS_SYSREG(esr);
-    uintreg_t rt_register = GET_ISS_RT(esr);
-    uintreg_t value;
-
-	CHECK(rt_register < NUM_GP_REGS + 1);
-    if (!ISS_IS_READ(esr)) {
-        dlog_notice(
-                "Unsupported feature ID register write: "
-                "op0=%d, op1=%d, crn=%d, crm=%d, op2=%d, rt=%d.\n",
-                GET_ISS_OP0(esr), GET_ISS_OP1(esr), GET_ISS_CRN(esr),
-                GET_ISS_CRM(esr), GET_ISS_OP2(esr), GET_ISS_RT(esr));
-        return true;
-    }
-
-    switch(sys_register) {
-#define X(reg_name, op0, op1, crn, crm, op2)    \
-        case (GET_ISS_ENCODING(op0, op1, crn, crm, op2)): \
-            value = read_msr(reg_name);  \
-            break;
-        FEATURE_ID_ICC_REGISTERS_READ;
-#undef X
-
-	default:
-		/* Reserved registers should be read as zero (raz). */
-		value = 0;
-		dlog_notice(
-			"Unsupported feature ID ICC register read: "
-			"op0=%d, op1=%d, crn=%d, crm=%d, op2=%d, rt=%d.\n",
-			GET_ISS_OP0(esr), GET_ISS_OP1(esr), GET_ISS_CRN(esr),
-			GET_ISS_CRM(esr), GET_ISS_OP2(esr), GET_ISS_RT(esr));
-		break;
-	}
-
-	if (rt_register != RT_REG_XZR) {
-		vcpu->regs.r[rt_register] = value;
-	}
-
-    return true;
 }
 
 /**

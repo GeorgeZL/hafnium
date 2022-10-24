@@ -755,6 +755,9 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 					       mem_size);
 	}
 
+    dlog_warning("Secondary VM context info:\n");
+    vcpu_dump_sysarch(vcpu_locked.vcpu);
+
 	vcpu_unlock(&vcpu_locked);
 
 	ret = true;

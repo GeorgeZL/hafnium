@@ -22,6 +22,7 @@ struct vcpu *cpu_main(struct cpu *c)
 {
 	struct vm *first_boot;
 	struct vcpu *vcpu;
+    static bool debug = false;
 
 	/*
 	 * This returns the PVM in the normal world and the first
@@ -43,6 +44,13 @@ struct vcpu *cpu_main(struct cpu *c)
 	plat_ffa_sri_init(c);
 
 	vm_set_boot_info_gp_reg(first_boot, vcpu);
+
+    if (debug == false) {
+        debug = true;
+
+        dlog_warning("Primary VM context:\n");
+        vcpu_dump_sysarch(vcpu);
+    }
 
 	return vcpu;
 }

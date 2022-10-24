@@ -40,6 +40,8 @@ void fdt_fini(struct fdt *fdt);
 const void *fdt_base(const struct fdt *fdt);
 size_t fdt_size(const struct fdt *fdt);
 
+void fdt_dump_file(void *ptr);
+
 bool fdt_find_node(const struct fdt *fdt, const char *path,
 		   struct fdt_node *node);
 bool fdt_is_compatible(struct fdt_node *node, const char *compat);

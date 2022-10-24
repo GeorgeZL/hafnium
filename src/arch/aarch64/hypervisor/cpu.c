@@ -25,6 +25,7 @@
 #include "msr.h"
 #include "perfmon.h"
 #include "sysregs.h"
+#include "hf/dlog.h"
 
 #if BRANCH_PROTECTION
 
@@ -217,4 +218,18 @@ void arch_cpu_init(struct cpu *c, ipaddr_t entry_point)
 
 	isb();
 	plat_interrupts_controller_hw_init(c);
+}
+
+void vcpu_dump_sysarch(struct vcpu *vcpu)
+{
+    struct arch_regs *regs = &vcpu->regs;
+
+    dlog_warning("Virtualization Context:\n");
+    dlog_warning("\tInit PC: 0x%08x(x0:%08x, x1:%08x, x2:%08x)\n",
+        regs->pc, regs->r[0], regs->r[1], regs->r[2]);
+    dlog_warning("\tHCR_EL2:     0x%016x\n", regs->hcr_el2);
+    dlog_warning("\tVTTBR_EL2:   0x%016x\n", regs->lazy.vttbr_el2);
+    dlog_warning("\tVTCR_EL2:    0x%016x\n", regs->lazy.vtcr_el2);
+    dlog_warning("\tVMPIDR_EL2:  0x%016x\n", regs->lazy.vmpidr_el2);
+    dlog_warning("\tMDCR_EL2:    0x%016x\n", regs->lazy.mdcr_el2);
 }

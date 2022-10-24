@@ -38,6 +38,59 @@ static_assert((HF_OTHER_WORLD_ID > VM_ID_MAX) ||
 		      (HF_OTHER_WORLD_ID < HF_VM_ID_BASE),
 	      "TrustZone VM ID clashes with normal VM range.");
 
+static void partition_manifest_dump(const struct partition_manifest *partition)
+{
+    dlog_info("\tffa version: 0x%08x\n", partition->ffa_version);
+    dlog_info("\tuuid: %08x-%08x-%08x-%08x\n",
+        partition->uuid.uuid[0], partition->uuid.uuid[1], partition->uuid.uuid[2], partition->uuid.uuid[3]);
+    dlog_info("\tffa vmid: 0x%08x\n", partition->id);
+    dlog_info("\tvcpu count: 0x%08x\n", partition->execution_ctx_count);
+    dlog_info("\truntime el: 0x%x\n", partition->run_time_el);
+    dlog_info("\tload addr: 0x%08x\n", partition->load_addr);
+    dlog_info("\tep offset: 0x%08x\n", partition->ep_offset);
+    dlog_info("\tboot_info: %d\n", partition->boot_info);
+    dlog_info("\tboot order: 0x%x\n", partition->boot_order);
+    dlog_info("\tmemory block count: %d\n", partition->mem_region_count);
+#if 0
+    for (int i = 0; i < SP_MAX_MEMORY_REGIONS && i < partition->mem_region_count; i++) {
+        dlog_info("\tmemory block-%d(%s): 0x%08x : 0x%08x, attr: 0x%08x\n", i, \
+            partition->mem_regions[i].name.data, partition->mem_regions[i].base_address, \
+            partition->mem_regions[i].page_count, partition->mem_regions[i].attributes);
+    }
+#endif
+}
+
+static void hafnium_vm_dump(const struct manifest_vm *vm, int index)
+{
+    dlog_info("----------dump manifest for vm-%d-------------\n", index);
+    dlog_info("VM name: %s\n", vm->debug_name.data);
+    dlog_info("kernel name: %s\n", vm->kernel_filename.data);
+    if (index == HF_PRIMARY_VM_ID) {
+        dlog_info("ramdisk name: %s\n", vm->primary.ramdisk_filename.data);
+        dlog_info("boot addr: 0x%08x\n", vm->primary.boot_address);
+    } else {
+        dlog_info("ramdisk name: %s\n", vm->secondary.ramdisk_filename.data);
+        dlog_info("fdtfile name: %s\n", vm->secondary.fdt_filename);
+        dlog_info("initrd_address: 0x%08x\n", vm->secondary.initrd_address);
+        dlog_info("fdt_address: 0x%08x\n", vm->secondary.fdt_address);
+    }
+
+    partition_manifest_dump(&vm->partition);
+}
+
+void hafnium_manifest_dump(const struct manifest *manifest)
+{
+    const struct manifest_vm *vm = NULL;
+
+    for (int i = 0; i < manifest->vm_count; i++) {
+        vm = &manifest->vm[i];
+        hafnium_vm_dump(vm, i);
+        dlog_info("\n");
+    }
+}
+
+
+
 static inline size_t count_digits(ffa_vm_id_t vm_id)
 {
 	size_t digits = 0;
@@ -348,10 +401,22 @@ static enum manifest_return_code parse_vm(struct fdt_node *node,
 		TRY(read_optional_uint64(node, "boot_address",
 					 MANIFEST_INVALID_ADDRESS,
 					 &vm->primary.boot_address));
-	}
+    } else {
+		TRY(read_optional_string(node, "ramdisk_filename",
+					 &vm->secondary.ramdisk_filename));
+        
+		TRY(read_optional_uint64(node, "initrd_address",
+					 MANIFEST_INVALID_ADDRESS,
+					 &vm->secondary.initrd_address));
+
+		TRY(read_optional_uint64(node, "fdt_address",
+					 MANIFEST_INVALID_ADDRESS,
+					 &vm->secondary.fdt_address));
+    }
 	TRY(read_optional_uint8(node, "exception-level", (uint8_t)EL1,
 				(uint8_t *)&vm->partition.run_time_el));
 
+    hafnium_vm_dump(vm, vm_id);
 	return MANIFEST_SUCCESS;
 }
 
@@ -994,3 +1059,5 @@ const char *manifest_strerror(enum manifest_return_code ret_code)
 
 	panic("Unexpected manifest return code.");
 }
+
+

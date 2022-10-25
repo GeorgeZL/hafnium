@@ -325,3 +325,4 @@ void vm_notifications_set_npi_injected(struct vm_locked vm_locked,
 				       bool npi_injected);
 bool vm_notifications_is_npi_injected(struct vm_locked vm_locked);
 void vm_set_boot_info_gp_reg(struct vm *vm, struct vcpu *vcpu);
+struct vcpu *vm_get_vcpu_with_cpu(struct vm *vm, struct cpu *cpu);

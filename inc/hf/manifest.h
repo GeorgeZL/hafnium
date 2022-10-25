@@ -178,6 +178,8 @@ struct manifest_vm {
 	bool is_hyp_loaded;
 	struct partition_manifest partition;
 
+    ffa_vcpu_count_t vcpu_count;
+
 	union {
 		/* Properties specific to the primary VM. */
 		struct {
@@ -187,7 +189,6 @@ struct manifest_vm {
 		/* Properties specific to secondary VMs. */
 		struct {
 			uint64_t mem_size;
-			ffa_vcpu_count_t vcpu_count;
 			struct string fdt_filename;
 			struct string ramdisk_filename;
             uint64_t initrd_address;

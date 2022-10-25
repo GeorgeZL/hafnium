@@ -295,7 +295,7 @@ static bool load_primary(struct mm_stage1_locked stage1_locked,
 		}
 	}
 
-	if (!vm_init_next(MAX_CPUS, ppool, &vm, false)) {
+	if (!vm_init_next(manifest_vm->vcpu_count, ppool, &vm, false)) {
 		dlog_error("Unable to initialise primary VM.\n");
 		return false;
 	}
@@ -586,9 +586,9 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 	 * FF-A 1.0 spec.
 	 */
 	CHECK(manifest_vm->partition.run_time_el != S_EL0 ||
-	      manifest_vm->secondary.vcpu_count == 1);
+	      manifest_vm->vcpu_count == 1);
 
-	if (!vm_init_next(manifest_vm->secondary.vcpu_count, ppool, &vm,
+	if (!vm_init_next(manifest_vm->vcpu_count, ppool, &vm,
 			  (manifest_vm->partition.run_time_el == S_EL0))) {
 		dlog_error("Unable to initialise VM.\n");
 		return false;
@@ -802,7 +802,7 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 	}
 
 	dlog_info("Loaded with %u vCPUs, entry at %#x.\n",
-		  manifest_vm->secondary.vcpu_count, ipa_addr(secondary_entry));
+		  manifest_vm->vcpu_count, ipa_addr(secondary_entry));
 
 	vcpu = vm_get_vcpu(vm, 0);
 

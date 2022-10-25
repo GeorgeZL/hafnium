@@ -378,9 +378,9 @@ static enum manifest_return_code parse_vm_common(const struct fdt_node *node,
 	TRY(read_bool(node, "smc_whitelist_permissive",
 		      &vm->smc_whitelist.permissive));
 
+    TRY(read_uint16(node, "vcpu_count", &vm->vcpu_count));
 	if (vm_id != HF_PRIMARY_VM_ID) {
 		TRY(read_uint64(node, "mem_size", &vm->secondary.mem_size));
-		TRY(read_uint16(node, "vcpu_count", &vm->secondary.vcpu_count));
 		TRY(read_optional_string(node, "fdt_filename",
 					 &vm->secondary.fdt_filename));
 	}

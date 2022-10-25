@@ -15,6 +15,7 @@
 #include "hf/api.h"
 #include "hf/check.h"
 #include "hf/dlog.h"
+#include "hf/arch/plat/psci.h"
 
 #include "vmapi/hf/call.h"
 
@@ -49,6 +50,9 @@ static_assert((PAGE_SIZE % STACK_ALIGN) == 0,
  */
 alignas(PAGE_SIZE) static uint8_t cpu_message_buffer[MAX_CPUS][PAGE_SIZE];
 
+static struct spinlock smp_lock;
+static int32_t smp_maps[MAX_CPUS] = {0};
+
 uint8_t *cpu_get_buffer(struct cpu *c)
 {
 	size_t cpu_indx = cpu_index(c);
@@ -76,6 +80,49 @@ struct cpu cpus[MAX_CPUS] = {
 };
 
 uint32_t cpu_count = 1;
+
+static void smp_maps_init(void)
+{
+    uint32_t i;
+
+    sl_init(&smp_lock);
+
+    for (i = 0; i < MAX_CPUS; i++) {
+        smp_maps[i] = HF_INVALID_VM_ID;
+    }
+}
+
+struct cpu *cpu_request(ffa_vm_id_t vmid)
+{
+    int32_t cpu_index = -1;
+    uint32_t i;
+
+    sl_lock(&smp_lock);
+
+    for (i = 0; i < cpu_count; i++) {
+        if (smp_maps[i] == HF_INVALID_VM_ID) {
+            cpu_index = i;
+            smp_maps[i] = vmid;
+            break;
+        }
+    }
+
+    sl_unlock(&smp_lock);
+
+    return (cpu_index >= 0) ? &cpus[cpu_index] : NULL;
+}
+
+ffa_vm_id_t cpu_get_vmid(struct cpu *cpu)
+{
+    cpu_id_t cpuid = cpu_index(cpu);
+    ffa_vm_id_t vmid;
+
+    sl_lock(&smp_lock);
+    vmid = smp_maps[cpuid];
+    sl_unlock(&smp_lock);
+
+    return vmid;
+}
 
 void cpu_module_init(const cpu_id_t *cpu_ids, size_t count)
 {
@@ -125,6 +172,8 @@ void cpu_module_init(const cpu_id_t *cpu_ids, size_t count)
 	arch_cache_data_clean_range(va_from_ptr(cpus), sizeof(cpus));
 
 	arch_cache_data_clean_range(va_from_ptr(&cpu_count), sizeof(cpu_count));
+
+    smp_maps_init();
 }
 
 size_t cpu_index(struct cpu *c)
@@ -158,6 +207,9 @@ bool cpu_on(struct cpu *c, ipaddr_t entry, uintreg_t arg)
 		struct vcpu *vcpu = vm_get_vcpu(vm, cpu_index(c));
 		struct vcpu_locked vcpu_locked;
 
+        if (vcpu == NULL)
+            return true;
+        
 		vcpu_locked = vcpu_lock(vcpu);
 		vcpu_on(vcpu_locked, entry, arg);
 		vcpu_unlock(&vcpu_locked);

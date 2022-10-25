@@ -20,19 +20,25 @@
  */
 struct vcpu *cpu_main(struct cpu *c)
 {
-	struct vm *first_boot;
+	//struct vm *first_boot;
+    struct vm *vm;
 	struct vcpu *vcpu;
+    ffa_vm_id_t vmid;
     static bool debug = false;
 
 	/*
 	 * This returns the PVM in the normal world and the first
 	 * booted Secure Partition in the secure world.
 	 */
-	first_boot = vm_get_first_boot();
+	//first_boot = vm_get_first_boot();
+    vmid = cpu_get_vmid(c);
+    vm = vm_find(vmid);
 
-	vcpu = vm_get_vcpu(first_boot, cpu_index(c));
+    vcpu = vm_get_vcpu_with_cpu(vm, c);
 
-	vcpu->cpu = c;
+	//vcpu = vm_get_vcpu(first_boot, cpu_index(c));
+
+	//vcpu->cpu = c;
 
 	/* Reset the registers to give a clean start for vCPU. */
 	vcpu_reset(vcpu);
@@ -43,7 +49,7 @@ struct vcpu *cpu_main(struct cpu *c)
 	/* Initialize SRI for running core. */
 	plat_ffa_sri_init(c);
 
-	vm_set_boot_info_gp_reg(first_boot, vcpu);
+	vm_set_boot_info_gp_reg(vm, vcpu);
 
     if (debug == false) {
         debug = true;

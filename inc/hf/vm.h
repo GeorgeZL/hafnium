@@ -23,6 +23,7 @@
 #define MAX_SMCS 32
 #define LOG_BUFFER_SIZE 256
 #define VM_MANIFEST_MAX_INTERRUPTS 32
+#define MAX_VDEV_COUNT  10
 
 /**
  * The state of an RX buffer.
@@ -177,6 +178,9 @@ struct vm {
 	struct vcpu vcpus[MAX_CPUS];
 	struct mm_ptable ptable;
 	struct mailbox mailbox;
+
+    /** vdev **/
+    struct list_entry vdev_list;
 
 	struct {
 		/**

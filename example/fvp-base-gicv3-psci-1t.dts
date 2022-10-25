@@ -108,55 +108,14 @@
 			phandle = <0x2>;
 		};
 
-		cpu@10300 {
+        cpu@100 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
-			reg = <0x0 0x10300>;
+			reg = <0x0 0x100>;
 			enable-method = "psci";
 			cpu-idle-states = <0xa 0xb>;
 			next-level-cache = <0xc>;
-			phandle = <0x9>;
-		};
-
-
-		cpu@10200 {
-			device_type = "cpu";
-			compatible = "arm,armv8";
-			reg = <0x0 0x10200>;
-			enable-method = "psci";
-			cpu-idle-states = <0xa 0xb>;
-			next-level-cache = <0xc>;
-			phandle = <0x8>;
-		};
-
-		cpu@10100 {
-			device_type = "cpu";
-			compatible = "arm,armv8";
-			reg = <0x0 0x10100>;
-			enable-method = "psci";
-			cpu-idle-states = <0xa 0xb>;
-			next-level-cache = <0xc>;
-			phandle = <0x7>;
-		};
-
-		cpu@10000 {
-			device_type = "cpu";
-			compatible = "arm,armv8";
-			reg = <0x0 0x10000>;
-			enable-method = "psci";
-			cpu-idle-states = <0xa 0xb>;
-			next-level-cache = <0xc>;
-			phandle = <0x6>;
-		};
-
-		cpu@300 {
-			device_type = "cpu";
-			compatible = "arm,armv8";
-			reg = <0x0 0x300>;
-			enable-method = "psci";
-			cpu-idle-states = <0xa 0xb>;
-			next-level-cache = <0xc>;
-			phandle = <0x5>;
+			phandle = <0x3>;
 		};
 
 		cpu@200 {
@@ -169,14 +128,54 @@
 			phandle = <0x4>;
 		};
 
-		cpu@100 {
+        cpu@300 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
-			reg = <0x0 0x100>;
+			reg = <0x0 0x300>;
 			enable-method = "psci";
 			cpu-idle-states = <0xa 0xb>;
 			next-level-cache = <0xc>;
-			phandle = <0x3>;
+			phandle = <0x5>;
+		};
+		cpu@10000 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x10000>;
+			enable-method = "psci";
+			cpu-idle-states = <0xa 0xb>;
+			next-level-cache = <0xc>;
+			phandle = <0x6>;
+		};
+
+
+		cpu@10100 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x10100>;
+			enable-method = "psci";
+			cpu-idle-states = <0xa 0xb>;
+			next-level-cache = <0xc>;
+			phandle = <0x7>;
+		};
+
+		cpu@10200 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x10200>;
+			enable-method = "psci";
+			cpu-idle-states = <0xa 0xb>;
+			next-level-cache = <0xc>;
+			phandle = <0x8>;
+		};
+
+		cpu@10300 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x10300>;
+			enable-method = "psci";
+			cpu-idle-states = <0xa 0xb>;
+			next-level-cache = <0xc>;
+			phandle = <0x9>;
 		};
 
 		l2-cache0 {
@@ -484,7 +483,7 @@
 
 / {
     chosen {
-        bootargs = "earlycon=pl011,mmio32,0x1c0a0000";
+        bootargs = "earlycon=pl011,mmio32,0x1c0a0000 maxcpus=4";
         stdout-path = "serial0:115200n8";
         linux,initrd-start = <0x84000000>;
         linux,initrd-end = <0x90000000>;

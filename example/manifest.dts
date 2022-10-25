@@ -10,6 +10,7 @@
 			kernel_filename = "Image";
 			ramdisk_filename = "initrd.img";
 			smc_whitelist_permissive;
+			vcpu_count = <0x04>;
 		};
 
 		vm2 {

@@ -27,6 +27,7 @@
 #include "hf/static_assert.h"
 #include "hf/std.h"
 #include "hf/vm.h"
+#include "hf/cpu.h"
 
 #include "vmapi/hf/call.h"
 #include "vmapi/hf/ffa.h"
@@ -887,7 +888,7 @@ static bool api_vcpu_prepare_run(struct vcpu *current, struct vcpu *vcpu,
 	}
 
 	/* It has been decided that the vCPU should be run. */
-	vcpu->cpu = current->cpu;
+	//vcpu->cpu = current->cpu;
 	vcpu->state = VCPU_STATE_RUNNING;
 
 #if SECURE_WORLD == 1
@@ -968,15 +969,21 @@ struct ffa_value api_ffa_run(ffa_vm_id_t vm_id, ffa_vcpu_index_t vcpu_idx,
 	}
 
 	/* Switch to the vCPU. */
-	*next = vcpu;
+    if (current->cpu == vcpu->cpu) {
+        *next = vcpu;
 
-	/*
-	 * Set a placeholder return code to the scheduler. This will be
-	 * overwritten when the switch back to the primary occurs.
-	 */
-	ret.func = FFA_INTERRUPT_32;
-	ret.arg1 = 0;
-	ret.arg2 = 0;
+        /*
+         * Set a placeholder return code to the scheduler. This will be
+         * overwritten when the switch back to the primary occurs.
+         */
+        ret.func = FFA_INTERRUPT_32;
+        ret.arg1 = 0;
+        ret.arg2 = 0;
+    } else {
+        cpu_power_on(vcpu->cpu, &ret.func);
+        ret.arg1 = 0;
+        ret.arg2 = 0;
+    }
 
 out:
 	return ret;

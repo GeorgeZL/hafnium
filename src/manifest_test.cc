@@ -473,7 +473,7 @@ TEST(manifest, vcpu_count_limit)
 
 	ASSERT_EQ(manifest_from_vec(&m, dtb_last_valid), MANIFEST_SUCCESS);
 	ASSERT_EQ(m.vm_count, 2);
-	ASSERT_EQ(m.vm[1].secondary.vcpu_count, UINT16_MAX);
+	ASSERT_EQ(m.vm[1].vcpu_count, UINT16_MAX);
 
 	ASSERT_EQ(manifest_from_vec(&m, dtb_first_invalid),
 		  MANIFEST_ERROR_INTEGER_OVERFLOW);
@@ -627,7 +627,7 @@ TEST(manifest, valid)
 	vm = &m.vm[1];
 	ASSERT_STREQ(string_data(&vm->debug_name), "first_secondary_vm");
 	ASSERT_STREQ(string_data(&vm->kernel_filename), "");
-	ASSERT_EQ(vm->secondary.vcpu_count, 42);
+	ASSERT_EQ(vm->vcpu_count, 42);
 	ASSERT_EQ(vm->secondary.mem_size, 12345);
 	ASSERT_THAT(
 		std::span(vm->smc_whitelist.smcs, vm->smc_whitelist.smc_count),
@@ -638,7 +638,7 @@ TEST(manifest, valid)
 	ASSERT_STREQ(string_data(&vm->debug_name), "second_secondary_vm");
 	ASSERT_STREQ(string_data(&vm->kernel_filename),
 		     "second_secondary_kernel");
-	ASSERT_EQ(vm->secondary.vcpu_count, 43);
+	ASSERT_EQ(vm->vcpu_count, 43);
 	ASSERT_EQ(vm->secondary.mem_size, 0x12345);
 	ASSERT_THAT(
 		std::span(vm->smc_whitelist.smcs, vm->smc_whitelist.smc_count),

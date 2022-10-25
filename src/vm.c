@@ -54,6 +54,8 @@ struct vm *vm_init(ffa_vm_id_t id, ffa_vcpu_count_t vcpu_count,
 {
 	uint32_t i;
 	struct vm *vm;
+    struct cpu *cpu;
+    struct vcpu *vcpu;
 
 	if (id == HF_OTHER_WORLD_ID) {
 		CHECK(el0_partition == false);
@@ -91,8 +93,13 @@ struct vm *vm_init(ffa_vm_id_t id, ffa_vcpu_count_t vcpu_count,
 
 	/* Do basic initialization of vCPUs. */
 	for (i = 0; i < vcpu_count; i++) {
-		vcpu_init(vm_get_vcpu(vm, i), vm);
-	}
+        vcpu = vm_get_vcpu(vm, i);
+		vcpu_init(vcpu, vm);
+        if (id != HF_OTHER_WORLD_ID) {
+            cpu = cpu_request(vm->id);
+            vcpu->cpu = cpu;
+        }
+    }
 
 	/* Basic initialization of the notifications structure. */
 	vm_notifications_init_bindings(&vm->notifications.from_sp);
@@ -220,8 +227,29 @@ void vm_unlock(struct vm_locked *locked)
  */
 struct vcpu *vm_get_vcpu(struct vm *vm, ffa_vcpu_index_t vcpu_index)
 {
+    if (vcpu_index >= vm->vcpu_count)
+        return NULL;
+
 	CHECK(vcpu_index < vm->vcpu_count);
 	return &vm->vcpus[vcpu_index];
+}
+
+struct vcpu *vm_get_vcpu_with_cpu(struct vm *vm, struct cpu *cpu)
+{
+    ffa_vcpu_index_t vcpuid;
+    struct vcpu *vcpu = NULL;
+
+    if (cpu == NULL || vm == NULL)
+        return NULL;
+
+    for (vcpuid = 0; vcpuid < vm->vcpu_count; vcpuid++) {
+        if (vm->vcpus[vcpuid].cpu == cpu) {
+            vcpu = &vm->vcpus[vcpuid];
+            break;
+        }
+    }
+
+    return vcpu;
 }
 
 /**

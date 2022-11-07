@@ -13,16 +13,20 @@
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
-int memcmp(const void *a, const void *b, size_t n);
-
-int strncmp(const char *a, const char *b, size_t n);
-
 #define ctz(x) __builtin_ctz(x)
 
 /* Compatibility with old compilers */
 #ifndef __has_builtin
 #define __has_builtin(x) 0
 #endif
+
+#ifndef typeof
+#define typeof(x)   __typeof__(x)
+#endif
+
+#define CONTAINER_OF(ptr, type, field) \
+	((type *)((char *)ptr - offsetof(type, field)))
+
 
 /**
  * Check whether the value `v` is aligned to the boundary `a`,

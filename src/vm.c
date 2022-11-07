@@ -363,6 +363,8 @@ void vm_ptable_defrag(struct vm_locked vm_locked, struct mpool *ppool)
 bool vm_unmap_hypervisor(struct vm_locked vm_locked, struct mpool *ppool)
 {
 	/* TODO: If we add pages dynamically, they must be included here too. */
+	return vm_unmap(vm_locked, layout_text_begin(), layout_image_end(), ppool);
+#if 0
 	return vm_unmap(vm_locked, layout_text_begin(), layout_text_end(),
 			ppool) &&
 	       vm_unmap(vm_locked, layout_rodata_begin(), layout_rodata_end(),
@@ -371,6 +373,7 @@ bool vm_unmap_hypervisor(struct vm_locked vm_locked, struct mpool *ppool)
 			ppool) &&
 	       vm_unmap(vm_locked, layout_stacks_begin(), layout_stacks_end(),
 			ppool);
+#endif
 }
 
 /**

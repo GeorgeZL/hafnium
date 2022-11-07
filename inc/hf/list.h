@@ -20,8 +20,6 @@ struct list_entry {
 	{                              \
 		.next = &l, .prev = &l \
 	}
-#define CONTAINER_OF(ptr, type, field) \
-	((type *)((char *)ptr - offsetof(type, field)))
 
 static inline void list_init(struct list_entry *e)
 {
@@ -36,6 +34,11 @@ static inline void list_append(struct list_entry *l, struct list_entry *e)
 
 	e->next->prev = e;
 	e->prev->next = e;
+}
+
+static inline void list_add_tail(struct list_entry *l, struct list_entry *e)
+{
+    list_append(l, e);
 }
 
 static inline void list_prepend(struct list_entry *l, struct list_entry *e)

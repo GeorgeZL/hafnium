@@ -140,3 +140,15 @@ size_t strnlen_s(const char *str, size_t strsz)
 	/* NULL character not found. */
 	return strsz;
 }
+
+char *strcpy(char *des, const char *src)
+{
+	char *tmp = des;
+
+	if (des == NULL || src == NULL)
+		return NULL;
+
+	while ((*des++=*src++) != '\0');
+
+	return tmp;
+}

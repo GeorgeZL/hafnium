@@ -36,6 +36,7 @@
 #include "smc.h"
 #include "sysregs.h"
 
+char *strcpy(char *des, const char *src);
 /**
  * Hypervisor Fault Address Register Non-Secure.
  */
@@ -468,20 +469,13 @@ static void smc_forwarder(const struct vm *vm, struct ffa_value *args)
  * vCPU.
  */
 
-static void strncpy(char *dist, char *src, int len)
-{
-	int _len = strnlen_s(src, len);
-
-	memcpy_s(dist, _len, src, _len);
-}
-
 #define FFA_FUNC_STR_CLEAR(name)    \
 { \
 	index = (name) - 0x84000060; \
 	if (index < 100 && index >= 0) { \
 		str_ptr = g_ffa_func_str[index]; \
 		if (strnlen_s(str_ptr, 40) == 0) \
-			strncpy(str_ptr, #name, 40); \
+			strcpy(str_ptr, #name); \
 	} \
 }
 

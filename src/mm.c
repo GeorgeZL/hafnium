@@ -563,6 +563,7 @@ static bool mm_ptable_identity_update(struct mm_ptable *t, paddr_t pa_begin,
  * write sub-tables.
  */
 // NOLINTNEXTLINE(misc-no-recursion)
+#if 1
 static void mm_dump_table_recursive(struct mm_page_table *table, uint8_t level,
 				    int max_level)
 {
@@ -620,7 +621,7 @@ static void mm_dump_table_recursive(struct mm_page_table *table, uint8_t level,
 		}
 	}
 
-#if 0
+#if 1
 	if (cont_flag == true) {
 		cont_flag = false;
 
@@ -634,6 +635,29 @@ static void mm_dump_table_recursive(struct mm_page_table *table, uint8_t level,
 #endif
 #undef PTE_ADDR_MASK
 }
+#else
+static void mm_dump_table_recursive(struct mm_page_table *table, uint8_t level,
+				    int max_level)
+{
+	uint64_t i;
+
+	for (i = 0; i < MM_PTE_PER_PAGE; i++) {
+		if (!arch_mm_pte_is_present(table->entries[i], level)) {
+			continue;
+		}
+
+		dlog("%*s%x: %x\n", 4 * (max_level - level), "", i,
+		     table->entries[i]);
+
+		if (arch_mm_pte_is_table(table->entries[i], level)) {
+			mm_dump_table_recursive(
+				mm_page_table_from_pa(arch_mm_table_from_pte(
+					table->entries[i], level)),
+				level - 1, max_level);
+		}
+	}
+}
+#endif
 
 /**
  * Writes the given table to the debug log.
@@ -1003,7 +1027,7 @@ bool mm_vm_identity_map(struct mm_ptable *t, paddr_t begin, paddr_t end,
 		t, begin, end, arch_mm_mode_to_stage2_attrs(mode), flags,
 		ppool);
 
-    success = true;
+	success = true;
 	if (success && ipa != NULL) {
 		*ipa = ipa_from_pa(begin);
 	}
@@ -1020,7 +1044,6 @@ bool mm_vm_unmap(struct mm_ptable *t, paddr_t begin, paddr_t end,
 {
 	uint32_t mode = MM_MODE_UNMAPPED_MASK;
 
-    return true;
 	return mm_vm_identity_map(t, begin, end, mode, ppool, NULL);
 }
 
@@ -1032,7 +1055,7 @@ void mm_vm_dump(struct mm_ptable *t)
     dump_index = 0;
     dlog_error("**********************************************\n");
     dlog_error("To dump page table (0x%08x)\n", t->root.pa);
-	mm_ptable_dump(t, 0);
+    mm_ptable_dump(t, 0);
     dlog_error("**********************************************\n");
 }
 

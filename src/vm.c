@@ -54,8 +54,8 @@ struct vm *vm_init(ffa_vm_id_t id, ffa_vcpu_count_t vcpu_count,
 {
 	uint32_t i;
 	struct vm *vm;
-    struct cpu *cpu;
-    struct vcpu *vcpu;
+	struct cpu *cpu;
+	struct vcpu *vcpu;
 
 	if (id == HF_OTHER_WORLD_ID) {
 		CHECK(el0_partition == false);
@@ -72,6 +72,7 @@ struct vm *vm_init(ffa_vm_id_t id, ffa_vcpu_count_t vcpu_count,
 
 	list_init(&vm->mailbox.waiter_list);
 	list_init(&vm->mailbox.ready_list);
+	list_init(&vm->vdev_list);
 	sl_init(&vm->lock);
 
 	vm->id = id;
@@ -93,13 +94,13 @@ struct vm *vm_init(ffa_vm_id_t id, ffa_vcpu_count_t vcpu_count,
 
 	/* Do basic initialization of vCPUs. */
 	for (i = 0; i < vcpu_count; i++) {
-        vcpu = vm_get_vcpu(vm, i);
+		vcpu = vm_get_vcpu(vm, i);
 		vcpu_init(vcpu, vm);
-        if (id != HF_OTHER_WORLD_ID) {
-            cpu = cpu_request(vm->id);
-            vcpu->cpu = cpu;
-        }
-    }
+		if (id != HF_OTHER_WORLD_ID) {
+			cpu = cpu_request(vm->id);
+			vcpu->cpu = cpu;
+		}
+	}
 
 	/* Basic initialization of the notifications structure. */
 	vm_notifications_init_bindings(&vm->notifications.from_sp);

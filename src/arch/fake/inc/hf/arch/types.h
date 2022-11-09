@@ -39,6 +39,8 @@ struct arch_vm {
 /** Type to represent the register state of a VM. */
 struct arch_regs {
 	uintreg_t arg[8];
+	uintreg_t r[32];
+	uintreg_t pc;
 	cpu_id_t vcpu_id;
 	bool virtual_interrupt;
 };

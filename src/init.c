@@ -31,6 +31,8 @@
 #include "hf/plat/iommu.h"
 #include "hf/std.h"
 #include "hf/vm.h"
+#include "hf/device/gic.h"
+#include "hf/device/vdev.h"
 
 #include "vmapi/hf/call.h"
 
@@ -126,7 +128,7 @@ void one_time_init(void)
 
 	mm_stage1_locked = mm_lock_stage1();
 
-	mm_vm_dump(mm_stage1_locked.ptable);
+	//mm_vm_dump(mm_stage1_locked.ptable);
 
 	if (!fdt_map(&fdt, mm_stage1_locked, plat_boot_flow_get_fdt_addr(),
 		     &ppool)) {
@@ -213,7 +215,7 @@ void one_time_init(void)
 
 	mm_defrag(mm_stage1_locked, &ppool);
 
-	mm_vm_dump(mm_stage1_locked.ptable);
+	//mm_vm_dump(mm_stage1_locked.ptable);
 
 	mm_unlock_stage1(&mm_stage1_locked);
 

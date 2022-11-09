@@ -179,8 +179,8 @@ struct vm {
 	struct mm_ptable ptable;
 	struct mailbox mailbox;
 
-    /** vdev **/
-    struct list_entry vdev_list;
+	/** vdev **/
+	struct list_entry vdev_list;
 
 	struct {
 		/**

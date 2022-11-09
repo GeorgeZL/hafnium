@@ -28,6 +28,7 @@
 #include "hf/std.h"
 #include "hf/vm.h"
 #include "hf/cpu.h"
+#include "hf/device/gic.h"
 
 #include "vmapi/hf/call.h"
 #include "vmapi/hf/ffa.h"

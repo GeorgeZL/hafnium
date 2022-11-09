@@ -8,6 +8,7 @@
 
 #include <stdnoreturn.h>
 
+#include "hf/arch/arch.h"
 #include "hf/arch/barriers.h"
 #include "hf/arch/init.h"
 #include "hf/arch/mmu.h"
@@ -24,6 +25,7 @@
 #include "hf/plat/interrupts.h"
 #include "hf/vm.h"
 #include "hf/std.h"
+#include "hf/device/vdev.h"
 
 #include "vmapi/hf/call.h"
 
@@ -70,10 +72,16 @@ char *strcpy(char *des, const char *src);
 /**
  * Returns a reference to the currently executing vCPU.
  */
-static struct vcpu *current(void)
+struct vcpu *current(void)
 {
 	// NOLINTNEXTLINE(performance-no-int-to-ptr)
 	return (struct vcpu *)read_msr(tpidr_el2);
+}
+
+struct vm *current_vm(void)
+{
+	struct vcpu *vcpu = current();
+	return (struct vm*)vcpu->vm;
 }
 
 /**
@@ -431,7 +439,7 @@ static void smc_forwarder(const struct vm *vm, struct ffa_value *args)
 	uint32_t client_id = vm->id;
 	uintreg_t arg7 = args->arg7;
 
-	if (smc_is_blocked(vm, args->func)) {
+	if (!smc_is_blocked(vm, args->func)) {
 		args->func = SMCCC_ERROR_UNKNOWN;
 		return;
 	}
@@ -1162,6 +1170,7 @@ static struct vcpu_fault_info fault_info_init(uintreg_t esr,
 	struct vcpu_fault_info r;
 	uint64_t hpfar_el2_val;
 	uint64_t hpfar_el2_fipa;
+	uint64_t iss = ESR_ISS(esr);
 
 	r.mode = mode;
 	r.pc = va_init(vcpu->regs.pc);
@@ -1171,6 +1180,13 @@ static struct vcpu_fault_info fault_info_init(uintreg_t esr,
 
 	/* Extract Faulting IPA. */
 	hpfar_el2_fipa = (hpfar_el2_val & HPFAR_EL2_FIPA) << 8;
+
+	r.isv = ISS_ISV(iss);
+	r.sas = ISS_SAS(iss);
+	r.sse = ISS_SSE(iss);
+	r.sf  = ISS_SF(iss);
+	r.wnr = ISS_WNR(iss);
+	r.srt = ISS_SRT(iss);
 
 #if SECURE_WORLD == 1
 

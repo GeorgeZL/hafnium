@@ -1,7 +1,12 @@
+#include <hf/device/vdev.h>
+#include <hf/vm.h>
+#include <hf/std.h>
+#include <hf/dlog.h>
 
 void *memset(void *s, int c, size_t n);
 void *memcpy(void *dst, const void *src, size_t n);
 void *memmove(void *dst, const void *src, size_t n);
+char *strcpy(char *des, const char *src);
 
 void vdev_set_name(struct vdev *vdev, char *name)
 {
@@ -10,56 +15,88 @@ void vdev_set_name(struct vdev *vdev, char *name)
     if (!vdev || !name)
         return;
 
-    len = strlen(name);
+    len = strnlen_s(name, 100);
     if (len > VDEV_NAME_SIZE)
         len = VDEV_NAME_SIZE;
 
-    strncpy(vdev->name, name, len);
+    strcpy(vdev->name, name);
 }
 
 void vdev_deinit(struct vdev *vdev)
 {
-    struct vm *vm = NULL;
-
     if (!vdev || !vdev->vm) {
         return;
     }
 
-    list_del(&vdev->list);
+    list_remove(&vdev->list);
     memset(vdev, 0, sizeof(struct vdev));
 }
 
-int vdev_init(struct vm *vm, struct vdev *vdev, uint64_t base, uint32_t size)
+int vdev_init(struct vdev *vdev, uint64_t base, uint32_t size)
 {
-    if (!vm || !vdev)
+    if (!vdev)
         return -EINVAL;
 
     memset(vdev, 0, sizeof(struct vdev));
     vdev->gvm_paddr = base;
     vdev->mem_size = size;
-    vdev->vm = vm;
+    vdev->vm = NULL;
     list_init(&vdev->list);
+
+    return 0;
+}
+
+int register_one_vdev(struct vm *vm, struct vdev *vdev, struct mpool *ppool)
+{
+    int ret = -EINVAL;
+
+    if (!vm || !vdev)
+        return ret;
+
     list_add_tail(&vm->vdev_list, &vdev->list);
+    dlog_error("Trying to unmap S2 of vm-%d: 0x%08x - 0x%08x\n", \
+	vm->id, vdev->gvm_paddr, vdev->gvm_paddr + vdev->mem_size);
+
+    ret = mm_vm_unmap(&vm->ptable, (paddr_t){vdev->gvm_paddr},
+        (paddr_t){vdev->gvm_paddr + vdev->mem_size}, ppool);
+    if (ret) {
+        dlog_error("vdev - '%s': failed to register to VM\n", vdev->name);
+    }
 
     return 0;
 }
 
 int vdev_mmio_emulation(
-    struct regs *regs, int write, uint64_t addr, uint64_t *value)
+    struct vcpu *vcpu, int write, uint32_t size, uint64_t addr, uint64_t *value)
 {
-    struct vm *vm = get_current_vm();
+    struct vm *vm = current_vm();
     struct vdev *vdev;
+    int ret = -EINVAL;
 
     list_for_each_entry(vdev, &vm->vdev_list, list) {
         if ((addr >= vdev->gvm_paddr) &&  \
             (addr < vdev->gvm_paddr + vdev->mem_size)) {
             if (write) {
-                return vdev->write(vdev, regs, addr, value);
+                return vdev->write(vdev, vcpu, addr, value);
             } else {
-                return vdev->read(vdev, regs, addr, value);
+                return vdev->read(vdev, vcpu, addr, value);
             }
         }
     }
 
     //TODO: inject data abort into vm
+    return ret;
 }
+
+void virtual_device_init(struct vm *vm, struct mpool *ppool)
+{
+	if (!vm || !ppool) {
+		dlog_error("Could not to init virtual devices\n");
+		return;
+	}
+
+	/* vgic device init */
+	vgicv3_init(vm, ppool);
+}
+
+

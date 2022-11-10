@@ -10,6 +10,11 @@
 #include "hf/mpool.h"
 #include "hf/vm.h"
 
+#if 0
 int vgicv3_init(struct vm *vm, struct mpool *ppool);
 int gicv3_init(void);
 int gicv3_secondary_init(void);
+#endif
+int vgic_init(struct vm *vm, struct mpool *ppool);
+int gic_init(void);
+int gic_secondary_init(void);

@@ -236,7 +236,6 @@ static void gicv2_dist_init(void)
 
 	/* Turn on the distributor */
 	writel_gicd(GICD_CTL_ENABLE, GICD_CTLR);
-	dsb();
 }
 
 int gicv2_init(void)

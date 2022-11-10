@@ -96,7 +96,5 @@ void virtual_device_init(struct vm *vm, struct mpool *ppool)
 	}
 
 	/* vgic device init */
-	vgicv3_init(vm, ppool);
+	vgic_init(vm, ppool);
 }
-
-

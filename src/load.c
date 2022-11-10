@@ -389,8 +389,8 @@ static bool load_primary(struct mm_stage1_locked stage1_locked,
 
 	dlog_error("@@@@: 5\n");
 	mm_vm_dump(&vm_locked.vm->ptable);
-	if (gicv3_init()) {
-		panic("Unable to init gicv3 controller\n");
+	if (gic_init()) {
+		panic("Unable to init gic controller\n");
 	}
 
 	dlog_error("@@@@: 6\n");
@@ -498,7 +498,7 @@ static bool load_secondary_ramdisk(struct mm_stage1_locked stage1_locked,
 	 * Ensure the FDT has one additional page at the end for patching,
 	 * and align it to the page boundary.
 	 */
-	allocated_size = align_up(memiter_size(&ramdisk) + MB_SIZE, MB_SIZE);
+	allocated_size = align_up(memiter_size(&ramdisk) + SIZE_1MB, SIZE_1MB);
 
 	if (allocated_size > ramdisk_max_size) {
 		dlog_error(
@@ -576,7 +576,7 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 
 		size_t fdt_allocated_size;
 
-		const size_t ramdisk_max_size = MB_SIZE * 128;
+		const size_t ramdisk_max_size = SIZE_1MB * 128;
 		size_t ramdisk_allocated_size;
 		paddr_t ramdisk_addr;
 
@@ -844,7 +844,7 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 					       mem_size);
 	}
 
-	gicv3_secondary_init();
+	gic_secondary_init();
 
 	virtual_device_init(vm_locked.vm, ppool);
 

@@ -174,28 +174,16 @@ int gicv3_init(void)
 
 	dlog_info("*** gicv3 init ***\n");
 
-#if 0
-	if (!fdt_find_node(&fdt, "interrupt-controller", &gic_node)) {
-		dlog_warning("GIC: could not find node of 'interrupt-controller'\n");
-		return -EINVAL;
-	}
-
-	if (!fdt_is_compatible(&gic_node, "arm,gic-v3")) {
-		dlog_warning("GIC: invalid compatible of gicv3\n");
-		return -EINVAL;
-	}
-#endif
-
 	memset(&g_device, 0, sizeof(struct gicv3_device));
 	sl_init(&g_device.lock);
 
-	g_device.gicd_base          = 0x2f000000;
+	g_device.gicd_base          = GICD_BASE;
 	g_device.gicd_size          = 0x10000;
 	g_device.gicr_frame_size    = 0x10000;
-	g_device.gicr_rd_base       = 0x2f100000;
-	g_device.gicr_sgi_base      = 0x2f100000 + g_device.gicr_frame_size;
-	g_device.gicr_vlpi_base     = 0x2f100000 + 2 * g_device.gicr_frame_size;
-	g_device.gic_base           = 0x2f000000;
+	g_device.gicr_rd_base       = GICD_BASE;
+	g_device.gicr_sgi_base      = GICD_BASE + g_device.gicr_frame_size;
+	g_device.gicr_vlpi_base     = GICD_BASE + 2 * g_device.gicr_frame_size;
+	g_device.gic_base           = GICD_BASE;
 	g_device.gic_size          = 0x300000;
 
 	//dlog_info("gicv3 gicd@0x%x gicr@0x%x\n", g_device.gicd_base, g_device.gicr_base);

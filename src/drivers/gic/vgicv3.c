@@ -99,7 +99,7 @@ static struct vgic_set *get_vgic_set(void)
     return &vgic_mgm;
 }
 
-void vgic_set_init(struct vgic_set *set)
+static void vgic_set_init(struct vgic_set *set)
 {
     uint32_t index = 0;
 
@@ -491,9 +491,10 @@ int vgicv3_init(struct vm *vm, struct mpool *ppool)
 	struct vgicv3_dev *vgic_dev = NULL;
 	struct gicv3_device *gic_dev = NULL;
 
-	dlog_info("vgicv3: create vdev for vm\n");
+	dlog_info("create vgicv3 for vm-%d\n", vm->id);
 
-	CHECK(set = get_vgic_set());
+    set = get_vgic_set();
+    vgic_set_init(set);
 	CHECK(gic_dev = get_gicv3_device());
 	CHECK(vgic_dev = request_vgic_device(set));
 

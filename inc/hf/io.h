@@ -405,15 +405,69 @@ static inline uint64_t __raw_readq(const volatile void *addr)
  * ordering rules but do not guarantee any ordering relative to Normal memory
  * accesses.
  */
-#define readb_relaxed(c)	({ uint8_t  __v = __raw_readb(c); iormb(); __v; })
-#define readw_relaxed(c)	({ uint16_t __v = __raw_readw(c); iormb(); __v; })
-#define readl_relaxed(c)	({ uint32_t __v = __raw_readl(c); iormb(); __v; })
-#define readq_relaxed(c)	({ uint64_t __v = __raw_readq(c); iormb(); __v; })
+static inline uint8_t readb_relaxed(uintpaddr_t c)
+{
+    uint8_t val;
 
-#define writeb_relaxed(v,c)	({ iowmb(); (void)__raw_writeb((v), (c)); })
-#define writew_relaxed(v,c)	({ iowmb(); (void)__raw_writew((v), (c)); })
-#define writel_relaxed(v,c)	({ iowmb(); (void)__raw_writel((v), (c)); })
-#define writeq_relaxed(v,c)	({ iowmb(); (void)__raw_writeq((v), (c)); })
+    val = __raw_readb((void *)c);
+    iormb();
+
+    return val;
+}
+
+static inline uint16_t readw_relaxed(uintpaddr_t c)
+{
+    uint16_t val;
+
+    val = __raw_readw((void *)c);
+    iormb();
+
+    return val;
+}
+
+static inline uint32_t readl_relaxed(uintpaddr_t c)
+{
+    uint32_t val;
+
+    val = __raw_readl((void *)c);
+    iormb();
+
+    return val;
+}
+
+static inline uint64_t readq_relaxed(uintpaddr_t c)
+{
+    uint64_t val;
+
+    val = __raw_readq((void *)c);
+    iormb();
+
+    return val;
+}
+
+static inline void writeb_relaxed(uint8_t v, uintpaddr_t c)
+{
+    iowmb();
+    (void)__raw_writeb(v, (void*)c);
+}
+
+static inline void writew_relaxed(uint16_t v, uintpaddr_t c)
+{
+    iowmb();
+    (void)__raw_writew(v, (void *)c);
+}
+
+static inline void writel_relaxed(uint32_t v, uintpaddr_t c)
+{
+    iowmb();
+    (void)__raw_writel(v, (void *)c);
+}
+
+static inline void writeq_relaxed(uint64_t v, uintpaddr_t c)
+{
+        iowmb(); 
+        (void)__raw_writeq(v, (void *)c);
+}
  
 #if 0
 #define ioread8(addr)		readb_relaxed(addr)

@@ -43,6 +43,9 @@
 
 /** Platform-agnostic API */
 
+#define iormb()     dmb(oshld)
+#define iowmb()     dmb(oshst)
+
 /**
  * Ensures all explicit memory accesses before this point are completed before
  * any later memory accesses are performed.

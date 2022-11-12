@@ -1,13 +1,24 @@
+#include <hf/arch/arch.h>
+#include <hf/io.h>
+#include <hf/static_assert.h>
+#include <hf/std.h>
+#include <hf/errno.h>
+#include <hf/dlog.h>
+#include <hf/mm.h>
+#include <hf/spinlock.h>
+#include <hf/bitops.h>
 #include <hf/interrupt.h>
 
-static inline void spi_table_init(struct spi_table *table)
+void *memset(void *s, int c, size_t n);
+
+void spi_table_init(struct spi_table *table)
 {
     if (table) {
         memset(table, 0, sizeof(struct spi_table));
     }
 }
 
-static inline bool spi_is_allocated(struct spi_table *table, uint32_t spi)
+bool spi_is_allocated(struct spi_table *table, uint32_t spi)
 {
     if (table && VALID_SPI(spi) ) {
         return test_bit(spi, table->map);
@@ -16,11 +27,11 @@ static inline bool spi_is_allocated(struct spi_table *table, uint32_t spi)
     return false;
 }
 
-static inline bool allocate_spi(struct spi_table *table, uint32_t spi)
+bool allocate_spi(struct spi_table *table, uint32_t spi)
 {
     bool retval = false;
 
-    if (VALID_SPI(spi) && !irq_is_allocated(table, spi)) {
+    if (VALID_SPI(spi) && !spi_is_allocated(table, spi)) {
         set_bit(spi, table->map);
         retval = true;
     }

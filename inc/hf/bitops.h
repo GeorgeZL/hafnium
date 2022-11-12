@@ -60,7 +60,7 @@ static inline uint32_t generic_ffs(uint32_t x)
 
 static inline uint32_t generic_ffs_next(uint32_t x, uint32_t pos)
 {
-    uint32_t mask = ~(1 << pos - 1);
+    uint32_t mask = ~((1 << pos) - 1);
     uint32_t tmp_x = x & mask;
 
     return generic_ffs(tmp_x);

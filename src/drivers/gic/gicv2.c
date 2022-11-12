@@ -29,6 +29,8 @@
 #include <hf/dlog.h>
 #include <hf/mm.h>
 #include <hf/spinlock.h>
+#include <hf/bitops.h>
+#include <hf/interrupt.h>
 #include "gicv2.h"
 
 #define GICH_V2_LR_VIRTUAL_MASK    0x3ff
@@ -62,12 +64,14 @@
 
 #define min(a, b)          ((a) < (b) ? (a) : (b))
 
-static int gicv2_nr_lines;
-
 struct gicv2_device {
     uintpaddr_t gicd_base;
+    uint32_t frame_size;
     struct spinlock lock;
+    struct spi_table spi;
+
     uint32_t nr_lines;
+    uint32_t cpus;
 };
 
 static struct gicv2_device g_gicv2_device = {0};
@@ -94,30 +98,64 @@ static void gicv2_device_init(void)
     memset(device, 0, sizeof(struct gicv2_device));
     sl_init(&device->lock);
     device->gicd_base = GICD_BASE;
+    device->frame_size = 0x10000;
 
-    /* TODO: calculate nr_lines */
-    device->nr_lines = 64;
+    spi_table_init(&device->spi);
 }
 
-static inline void writeb_gicd(uint8_t val, unsigned int offset)
+void writeb_gicd(uint8_t val, unsigned int offset)
 {
     struct gicv2_device *device = gicv2_get_device();
 
 	writeb_relaxed(val, device->gicd_base + offset);
 }
 
-static inline void writel_gicd(uint32_t val, unsigned int offset)
+void writew_gicd(uint16_t val, unsigned int offset)
+{
+    struct gicv2_device *device = gicv2_get_device();
+
+	writew_relaxed(val, device->gicd_base + offset);
+}
+
+void writel_gicd(uint32_t val, unsigned int offset)
 {
     struct gicv2_device *device = gicv2_get_device();
 
 	writel_relaxed(val, device->gicd_base + offset);
 }
 
-static inline uint32_t readl_gicd(unsigned int offset)
+void writeq_gicd(uint64_t val, unsigned int offset)
+{
+    struct gicv2_device *device = gicv2_get_device();
+
+	writeq_relaxed(val, device->gicd_base + offset);
+}
+
+uint8_t readb_gicd(unsigned int offset)
+{
+    struct gicv2_device *device = gicv2_get_device();
+	return readb_relaxed(device->gicd_base + offset);
+}
+
+uint16_t readw_gicd(unsigned int offset)
+{
+    struct gicv2_device *device = gicv2_get_device();
+	return readw_relaxed(device->gicd_base + offset);
+}
+
+uint32_t readl_gicd(unsigned int offset)
 {
     struct gicv2_device *device = gicv2_get_device();
 	return readl_relaxed(device->gicd_base + offset);
 }
+
+uint64_t readq_gicd(unsigned int offset)
+{
+    struct gicv2_device *device = gicv2_get_device();
+	return readq_relaxed(device->gicd_base + offset);
+}
+
+/* interface for virtual device */
 
 void gicv2_clear_pending(uint32_t irq)
 {
@@ -184,16 +222,14 @@ void gicv2_unmask_irq_cpu(uint32_t irq, int cpu)
 	dlog_info("not support unmask irq_percpu\n");
 }
 
-static void gicv2_cpu_init(void)
-{
-}
-
 static void gicv2_dist_init(void)
 {
 	uint32_t type;
 	uint32_t cpumask;
 	uint32_t gic_cpus;
-	unsigned int nr_lines;
+	uint32_t nr_lines;
+    uint32_t default_priority;
+    struct gicv2_device *device = gicv2_get_device();
 	int i;
 
 	cpumask = readl_gicd(GICD_ITARGETSR) & 0xff;
@@ -201,41 +237,49 @@ static void gicv2_dist_init(void)
 	cpumask |= cpumask << 8;
 	cpumask |= cpumask << 16;
 
-	/* Disable the distributor */
 	writel_gicd(0, GICD_CTLR);
 
 	type = readl_gicd(GICD_TYPER);
 	nr_lines = 32 * ((type & GICD_TYPE_LINES) + 1);
-	gic_cpus = 1 + ((type & GICD_TYPE_CPUS) >> 5);
-	dlog_info("GICv2: %d lines, %d cpu%s%s (IID %x).\n",
-		nr_lines, gic_cpus, (gic_cpus == 1) ? "" : "s",
-		(type & GICD_TYPE_SEC) ? ", secure" : "",
-		readl_gicd(GICD_IIDR));
-
+	gic_cpus = ((type & GICD_TYPE_CPUS) >> 5) + 1;
 
 	/* Default all global IRQs to level, active low */
 	for ( i = 32; i < nr_lines; i += 16 )
 		writel_gicd(0x0, GICD_ICFGR + (i / 16) * 4);
 
-	/* Route all global IRQs to this CPU */
 	for ( i = 32; i < nr_lines; i += 4 )
 		writel_gicd(cpumask, GICD_ITARGETSR + (i / 4) * 4);
 
 	/* Default priority for global interrupts */
+    default_priority = \
+            ((GIC_PRI_IRQ << 24) | (GIC_PRI_IRQ << 16) | \
+            (GIC_PRI_IRQ << 8) | GIC_PRI_IRQ);
 	for ( i = 32; i < nr_lines; i += 4 )
-		writel_gicd(GIC_PRI_IRQ << 24 | GIC_PRI_IRQ << 16 |
-			GIC_PRI_IRQ << 8 | GIC_PRI_IRQ,
-			GICD_IPRIORITYR + (i / 4) * 4);
+		writel_gicd(default_priority, GICD_IPRIORITYR + (i / 4) * 4);
 
 	/* Disable all global interrupts */
 	for ( i = 32; i < nr_lines; i += 32 )
-		writel_gicd(~0x0, GICD_ICENABLER + (i / 32) * 4);
+		writel_gicd(0xffffffff, GICD_ICENABLER + (i / 32) * 4);
 
 	/* Only 1020 interrupts are supported */
-	gicv2_nr_lines = min(1020U, nr_lines);
+	device->nr_lines = min(1020U, nr_lines);
 
 	/* Turn on the distributor */
 	writel_gicd(GICD_CTL_ENABLE, GICD_CTLR);
+}
+
+void gicv2_mm_init(
+    struct mm_stage1_locked stage1_locked, struct mpool *ppool)
+{
+    struct gicv2_device *device = NULL;
+
+    gicv2_device_init();
+    device = gicv2_get_device();
+
+	/* Map deivce space for interrupt controller */
+	mm_identity_map(stage1_locked, pa_init(device->gicd_base),
+			pa_add(pa_init(device->gicd_base), device->frame_size),
+			MM_MODE_R | MM_MODE_W | MM_MODE_D, ppool);
 }
 
 int gicv2_init(void)
@@ -244,12 +288,9 @@ int gicv2_init(void)
 
 	dlog_info("*** gicv2 init ***\n");
 
-    gicv2_device_init();
-
 	sl_lock(&device->lock);
 
 	gicv2_dist_init();
-	gicv2_cpu_init();
 
 	sl_unlock(&device->lock);
 
@@ -258,13 +299,5 @@ int gicv2_init(void)
 
 int gicv2_secondary_init(void)
 {
-    struct gicv2_device *device = gicv2_get_device();
-
-	sl_lock(&device->lock);
-
-	gicv2_cpu_init();
-
-	sl_unlock(&device->lock);
-
 	return 0;
 }

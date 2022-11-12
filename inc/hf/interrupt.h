@@ -6,7 +6,7 @@
 #define SPI_TABLE_SIZE  (SPI_MAX_ID >> 5)
 #define VALID_SPI(nr)   ((nr) < SPI_MAX_ID)
 
-static struct spi_table {
+struct spi_table {
     uint32_t map[SPI_TABLE_SIZE];
 };
 

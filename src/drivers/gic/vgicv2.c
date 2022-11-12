@@ -20,6 +20,8 @@
 #include <hf/check.h>
 #include "gicv2.h"
 
+#define NAME_LNE    20
+
 enum GICD_TYPE_GROUP {
     GICD_TYPE_INVAL = 0x0,
     GICD_TYPE_CTLR = 0x1,
@@ -33,50 +35,60 @@ enum GICD_TYPE_GROUP {
     GICD_TYPE_ISAn,
     GICD_TYPE_ICAn,
     GICD_TYPE_IPRn,
+    GICD_TYPE_ITAnR,
     GICD_TYPE_ITAn,
     GICD_TYPE_ICFn,
     GICD_TYPE_NSAn,
     GICD_TYPE_SGIR,
     GICD_TYPE_CPSGIn,
     GICD_TYPE_SPSGIn,
+
+    GICD_TYPE_MAX,
 };
 
-#define IN_RANGE(r, s, e)   ((((r) >= (s)) && ((r) <= (e))) ? 1 : 0)
-#define DEFINE_REG_CHECKER_FUNC(name, s, e) \
-    static inline uint32_t REG_IS_##name(uint32_t offset)    \
-    {   \
-        return IN_RANGE(offset, s, e) * GICD_TYPE_##name;   \
-    }
-
-DEFINE_REG_CHECKER_FUNC(CTLR,   0x0,    0x0)
-DEFINE_REG_CHECKER_FUNC(TYPER,  0x4,    0x4)
-DEFINE_REG_CHECKER_FUNC(IIDR,   0x8,    0x8)
-DEFINE_REG_CHECKER_FUNC(IGRPn,  0x80,   0x80)
-DEFINE_REG_CHECKER_FUNC(ISEn,   0x100,  0x17C)
-DEFINE_REG_CHECKER_FUNC(ICEn,   0x180,  0x1FC)
-DEFINE_REG_CHECKER_FUNC(ISPn,   0x200,  0x27C)
-DEFINE_REG_CHECKER_FUNC(ICPn,   0x280,  0x2FC)
-DEFINE_REG_CHECKER_FUNC(ISAn,   0x300,  0x37C)
-DEFINE_REG_CHECKER_FUNC(ICAn,   0x380,  0x3FC)
-DEFINE_REG_CHECKER_FUNC(IPRn,   0x400,  0x7F8)
-DEFINE_REG_CHECKER_FUNC(ITAn,   0x800,  0x81C)
-DEFINE_REG_CHECKER_FUNC(ICFn,   0xC00,  0xCFC)
-DEFINE_REG_CHECKER_FUNC(NSAn,   0xE00,  0xEFC)
-DEFINE_REG_CHECKER_FUNC(SGIR,   0xF00,  0xF00)
-DEFINE_REG_CHECKER_FUNC(CPSGIn, 0xF10,  0xF1C)
-DEFINE_REG_CHECKER_FUNC(SPSGIn, 0xF20,  0xF2C)
+struct vgicv2_reg_info {
+    char name[NAME_LNE];
+    uint32_t start;
+    uint32_t end;
+    uint32_t stride;
+};
 
 #define VGICV2_MODE_HWA 0x0 // hardware accelerate mode
 #define VGICV2_MODE_SWE 0x1 // software emulate mode
+#define IN_RANGE(r, s, e)   ((((r) >= (s)) && ((r) <= (e))) ? 1 : 0)
+
+static struct vgicv2_reg_info reg_infos[GICD_TYPE_MAX] = {
+#define REG_INFO(name, s, e, stride)    \
+    [GICD_TYPE_##name] = {"GICD_TYPE_"#name, s, e, stride}
+    REG_INFO(CTLR,  0x0,    0x0,    0x0),
+    REG_INFO(TYPER, 0x4,    0x4,    0x0),
+    REG_INFO(IIDR,  0x8,    0x8,    0x0),
+    REG_INFO(IGRPn, 0x80,   0xFC,   0x1),
+    REG_INFO(ISEn,  0x100,  0x17C,  0x1),
+    REG_INFO(ICEn,  0x180,  0x1FC,  0x1),
+    REG_INFO(ISPn,  0x200,  0x27C,  0x1),
+    REG_INFO(ICPn,  0x280,  0x2FC,  0x1),
+    REG_INFO(ISAn,  0x300,  0x37C,  0x1),
+    REG_INFO(ICAn,  0x380,  0x3FC,  0x1),
+    REG_INFO(IPRn,  0x400,  0x7F8,  0x8),
+    REG_INFO(ITAnR, 0x800,  0x81C,  0x8),
+    REG_INFO(ITAn,  0x820,  0xBF8,  0x8),
+    REG_INFO(ICFn,  0xC00,  0xCFC,  0x2),
+    REG_INFO(NSAn,  0xE00,  0xEFC,  0x2),
+    REG_INFO(SGIR,  0xF00,  0xF00,  0x0),
+    REG_INFO(CPSGIn,    0xF10,  0xF1C,  0x8),
+    REG_INFO(SPSGIn,    0xF20,  0xF2C,  0x8),
+#undef REG_INFO
+};
 
 struct vgicv2_dev {
 	struct vdev vdev;
     struct spinlock lock;
 
     /* GIC information */
-	uint32_t gicd_ctlr;
-	uint32_t gicd_typer;
-	uint32_t gicd_iidr;
+	uint32_t ctlr;
+	uint32_t typer;
+	uint32_t iidr;
 
 	uintpaddr_t gicd_base;
 	uint32_t gicd_size;
@@ -89,8 +101,6 @@ struct vgic_set {
     struct spinlock lock;
 };
 
-int gicv2_nr_lrs;
-
 static struct vgic_set vgic_set = {0};
 
 void *memset(void *s, int c, size_t n);
@@ -100,6 +110,27 @@ char *strcpy(char *des, const char *src);
 
 #define vdev_to_vgicv2(vdev) \
 	(struct vgicv2_dev *)CONTAINER_OF(vdev, struct vgicv2_dev, vdev)
+
+char *vgic_get_irq_name(uint32_t type)
+{
+    if (type < GICD_TYPE_MAX)
+        return reg_infos[type].name;
+
+    return NULL;
+}
+
+static uint32_t vgicv2_get_reg_type(uint32_t offset)
+{
+    uint32_t type;
+
+    for (type = GICD_TYPE_CTLR; type < GICD_TYPE_MAX; type++) {
+        if (IN_RANGE(offset, reg_infos[type].start, reg_infos[type].end))
+            return type;
+    }
+
+    return GICD_TYPE_INVAL;
+}
+
 
 static struct vgic_set *get_vgic_set(void)
 {
@@ -161,33 +192,8 @@ static void release_vgic_device(struct vgic_set *set, struct vgicv2_dev *device)
     }
 }
 
-static uint32_t vgicv2_get_reg_type(uint32_t offset)
-{
-    uint32_t type = GICD_TYPE_INVAL;
-
-    type = REG_IS_CTLR(offset);
-    type |= REG_IS_TYPER(offset);
-    type |= REG_IS_IIDR(offset);
-    type |= REG_IS_IGRPn(offset);
-    type |= REG_IS_ISEn(offset);
-    type |= REG_IS_ICEn(offset);
-    type |= REG_IS_ISPn(offset);
-    type |= REG_IS_ICPn(offset);
-    type |= REG_IS_ISAn(offset);
-    type |= REG_IS_ICAn(offset);
-    type |= REG_IS_IPRn(offset);
-    type |= REG_IS_ITAn(offset);
-    type |= REG_IS_ICFn(offset);
-    type |= REG_IS_NSAn(offset);
-    type |= REG_IS_SGIR(offset);
-    type |= REG_IS_CPSGIn(offset);
-    type |= REG_IS_SPSGIn(offset);
-
-    return type;
-}
-
 static int vgicv2_read(struct vcpu *vcpu, struct vgicv2_dev *gic,
-		unsigned long offset, unsigned long *v)
+		unsigned long offset, uint8_t size, unsigned long *v)
 {
 	uint32_t *value = (uint32_t *)v;
     uint32_t type = GICD_TYPE_INVAL;
@@ -196,39 +202,54 @@ static int vgicv2_read(struct vcpu *vcpu, struct vgicv2_dev *gic,
 
     switch (type) {
         case GICD_TYPE_CTLR:
-            *value = !!gic->gicd_ctlr;
             break;
         case GICD_TYPE_TYPER:
-            *value = gic->gicd_typer;
             break;
+        case GICD_TYPE_IIDR:
+            break;
+
         case GICD_TYPE_IGRPn:
-            *value = 0xffffffff;
             break;
         case GICD_TYPE_ISEn:
             break;
         case GICD_TYPE_ICEn:
             break;
         case GICD_TYPE_ISPn:
-            *value = 0;
             break;
         case GICD_TYPE_ICPn:
-            *value = 0;
             break;
         case GICD_TYPE_ISAn:
-            *value = 0;
+            break;
         case GICD_TYPE_ICAn:
-            *value = 0;
+            break;
         case GICD_TYPE_IPRn:
+            break;
+        case GICD_TYPE_ITAnR:
             break;
         case GICD_TYPE_ITAn:
             break;
         case GICD_TYPE_ICFn:
             break;
-        case GICD_TYPE_IIDR:
-            *value = 0x2 << 4;
-            break;
         default:
             dlog_error("Invalid gicd register (0x%x) to read\n", offset);
+            break;
+    }
+
+    dlog_error("gic to read register: '%s : 0x%x'\n", vgic_get_irq_name(type), offset);
+    switch (size) {
+        case 0:
+            *value = readb_gicd(offset);
+            break;
+        case 1:
+            *value = readw_gicd(offset);
+            break;
+        case 2:
+            *value = readl_gicd(offset);
+            break;
+        case 3:
+            *value = readq_gicd(offset);
+            break;
+        default:
             break;
     }
 
@@ -236,7 +257,7 @@ static int vgicv2_read(struct vcpu *vcpu, struct vgicv2_dev *gic,
 }
 
 static int vgicv2_write(struct vcpu *vcpu, struct vgicv2_dev *gic,
-		unsigned long offset, unsigned long *v)
+		unsigned long offset, uint8_t size, unsigned long *v)
 {
     uint32_t type = GICD_TYPE_INVAL;
 
@@ -264,6 +285,8 @@ static int vgicv2_write(struct vcpu *vcpu, struct vgicv2_dev *gic,
         case GICD_TYPE_IPRn:
             break;
         case GICD_TYPE_ITAn:
+            break;
+        case GICD_TYPE_ITAnR:
             break;
         case GICD_TYPE_ICFn:
             break;
@@ -274,30 +297,49 @@ static int vgicv2_write(struct vcpu *vcpu, struct vgicv2_dev *gic,
             break;
     }
 
+    dlog_error("gic to write register: '%s : 0x%x': 0x%x\n", vgic_get_irq_name(type), offset, *v);
+    switch (size) {
+        case 0:
+            writeb_gicd(*v & 0xff, offset);
+            break;
+        case 1:
+            writew_gicd(*v & 0xffff, offset);
+            break;
+        case 2:
+            writel_gicd(*v & 0xffffffff, offset);
+            break;
+        case 3:
+            writeq_gicd(*v, offset);
+            break;
+        default:
+            break;
+    }
+
 	return 0;
 }
 
 static int vgicv2_mmio_handler(struct vdev *vdev, struct vcpu *vcpu,
-		int read, unsigned long offset, unsigned long *value)
+		int read, uint64_t address, uint8_t size, unsigned long *value)
 {
 	struct vgicv2_dev *gic = vdev_to_vgicv2(vdev);
+    uint64_t offset = address - gic->gicd_base;
 
 	if (read)
-		return vgicv2_read(vcpu, gic, offset, value);
+		return vgicv2_read(vcpu, gic, offset, size, value);
 	else
-		return vgicv2_write(vcpu, gic, offset, value);
+		return vgicv2_write(vcpu, gic, offset, size, value);
 }
 
 int vgicv2_mmio_read(
-    struct vdev *vdev, struct vcpu *vcpu, uint64_t offset, uint64_t *read_value)
+    struct vdev *vdev, struct vcpu *vcpu, uint64_t address, uint8_t size, uint64_t *read_value)
 {
-	return vgicv2_mmio_handler(vdev, vcpu, 1, offset, read_value);
+	return vgicv2_mmio_handler(vdev, vcpu, 1, address, size, read_value);
 }
 
 int vgicv2_mmio_write(
-    struct vdev *vdev, struct vcpu *vcpu, uint64_t offset, uint64_t *write_value)
+    struct vdev *vdev, struct vcpu *vcpu, uint64_t address, uint8_t size, uint64_t *write_value)
 {
-	return vgicv2_mmio_handler(vdev, vcpu, 0, offset, write_value);
+	return vgicv2_mmio_handler(vdev, vcpu, 0, address, size, write_value);
 }
 
 void vgicv2_reset(struct vdev *vdev)
@@ -350,7 +392,6 @@ static int get_vgicv2_info(struct device_node *node, struct vgicv2_info *vinfo)
 }
 #endif
 
-#if 1
 int vgicv2_init(struct vm *vm, struct mpool *ppool)
 {
 	int ret = 0;
@@ -366,31 +407,26 @@ int vgicv2_init(struct vm *vm, struct mpool *ppool)
 
 	dev->gicd_base = GICD_BASE;
     dev->gicd_size = 0x10000;
+	vdev = &dev->vdev;
 	ret = vdev_init(vdev, dev->gicd_base, dev->gicd_size);
 	if (ret) {
 		dlog_error("Virtual device initialization failed");
 		goto init_failed;
 	}
 
-#if 0
-	dev->gicd_typer = vm->vcpu_nr << 5;
-	dev->gicd_typer |= (vm->vspi_nr >> 5) - 1;
-	dev->gicd_iidr = 0x0;
-#endif
-
-    vdev_set_name(vdev, "vgicv3");
+    vdev_set_name(vdev, "vgicv2");
 	vdev->read = vgicv2_mmio_read;
 	vdev->write = vgicv2_mmio_write;
 	vdev->deinit = vgicv2_deinit;
 	vdev->reset = vgicv2_reset;
 
-	ret = register_one_vdev(vm, vdev, ppool);
-	if (ret) {
+	if (!register_one_vdev(vm, vdev, ppool)) {
 		dlog_error("Registe virtual device '%s' failed", vdev->name);
+        ret = -EINVAL;
 		goto registe_failed;
 	}
 
-	dlog_info("vgicv3: create vdev for vm done\n");
+	dlog_info("vgicv2: create vdev for vm done\n");
 out:
 	return ret;
 
@@ -401,4 +437,3 @@ init_failed:
 
 	goto out;
 }
-#endif

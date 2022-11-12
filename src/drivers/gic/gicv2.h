@@ -155,6 +155,16 @@ void gicv2_unmask_irq_cpu(uint32_t irq, int cpu);
 int gicv2_init(void);
 int gicv2_secondary_init(void);
 
+void writeb_gicd(uint8_t val, unsigned int offset);
+void writew_gicd(uint16_t val, unsigned int offset);
+void writel_gicd(uint32_t val, unsigned int offset);
+void writeq_gicd(uint64_t val, unsigned int offset);
+
+uint8_t readb_gicd(unsigned int offset);
+uint16_t readw_gicd(unsigned int offset);
+uint32_t readl_gicd(unsigned int offset);
+uint64_t readq_gicd(unsigned int offset);
+
 struct gicv2_context {
     uint32_t hcr;
     uint32_t vmcr;

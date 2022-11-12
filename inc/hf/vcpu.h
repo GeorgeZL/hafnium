@@ -59,7 +59,7 @@ struct interrupts {
 	uint32_t enabled_and_pending_fiq_count;
 };
 
-#define ESR_ISS(esr)		((esr) & ((1 << 24) - 1))
+#define ESR_ISS(esr)		((esr) & ((1 << 25) - 1))
 #define ISS_ISV(iss)		((iss) >> 24 & 0x1)
 #define DAT_ISS_ISV_VAL		0x1
 

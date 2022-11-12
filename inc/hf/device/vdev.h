@@ -16,6 +16,7 @@
 #include <hf/mpool.h>
 #include <hf/arch/types.h>
 #include <hf/device/gic.h>
+#include <hf/device/vgic.h>
 
 struct vdev {
     char name[VDEV_NAME_SIZE];
@@ -26,8 +27,8 @@ struct vdev {
     uint64_t hvm_paddr;
     
     struct list_entry   list;
-    int (*read)(struct vdev *, struct vcpu *, uint64_t, uint64_t *);
-    int (*write)(struct vdev *, struct vcpu *, uint64_t, uint64_t *);
+    int (*read)(struct vdev *, struct vcpu *, uint64_t, uint8_t size, uint64_t *);
+    int (*write)(struct vdev *, struct vcpu *, uint64_t, uint8_t size, uint64_t *);
     void (*deinit)(struct vdev *);
     void (*reset)(struct vdev *);
     int (*suspend)(struct vdev *);
@@ -38,5 +39,5 @@ void vdev_set_name(struct vdev *vdev, char *name);
 void vdev_deinit(struct vdev *vdev);
 void virtual_device_init(struct vm *vm, struct mpool *ppool);
 int vdev_init(struct vdev *vdev, uint64_t base, uint32_t size);
-int register_one_vdev(struct vm *vm, struct vdev *vdev, struct mpool *);
-int vdev_mmio_emulation(struct vcpu *vcpu, int write, uint32_t size, uint64_t addr, uint64_t *value);
+bool register_one_vdev(struct vm *vm, struct vdev *vdev, struct mpool *);
+int vdev_mmio_emulation(struct vcpu *vcpu, int write, uint8_t size, uint64_t addr, uint64_t *value);

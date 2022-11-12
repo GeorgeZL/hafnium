@@ -9,6 +9,7 @@
 #include "hf/arch/init.h"
 #include "hf/arch/mmu.h"
 #include "hf/arch/plat/psci.h"
+#include "hf/device/gic.h"
 
 #include "hf/layout.h"
 
@@ -18,6 +19,10 @@
 void arch_one_time_init(void)
 {
 	plat_psci_init();
+
+	if (gic_init()) {
+		panic("Unable to init gic controller\n");
+	}
 }
 
 /**

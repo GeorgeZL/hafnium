@@ -149,15 +149,28 @@ static bool vcpu_handle_vdev_emulation(struct vcpu *current, struct vcpu_fault_i
 
 	if (f->isv == DAT_ISS_ISV_VAL) {
 		/* TODO: alignment check */
-		retval = vdev_mmio_emulation(
-			current, write, f->sas, f->ipaddr.ipa, &value);
-		if ((retval == 0) && (f->wnr != DAT_ISS_WNR_WR))
-			set_reg_value(current, f, value);
+
+        if (f->wnr == DAT_ISS_WNR_WR) {
+            value = current->regs.r[f->srt];
+            retval = vdev_mmio_emulation(
+                    current, write, f->sas, f->ipaddr.ipa, &value);
+        } else {
+            retval = vdev_mmio_emulation(
+                    current, write, f->sas, f->ipaddr.ipa, &value);
+            if (retval == 0) {
+                set_reg_value(current, f, value);
+            }
+        }
+
+        if (retval) {
+            dlog_error("Failed to '%s' address '0x%x'\n",
+                f->wnr ? "write" : "read", f->ipaddr.ipa);
+        }
 	}
 
 	current->regs.pc += 4;
 
-	return retval ? true : false;
+	return retval ? false : true;
 }
 
 bool vcpu_handle_page_fault(struct vcpu *current,

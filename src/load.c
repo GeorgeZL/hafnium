@@ -309,9 +309,6 @@ static bool load_primary(struct mm_stage1_locked stage1_locked,
 
 	vm_locked = vm_lock(vm);
 
-	dlog_error("@@@@: 0\n");
-	mm_vm_dump(&vm_locked.vm->ptable);
-
 	if (params->device_mem_ranges_count == 0) {
 		/*
 		 * Map 1TB of address space as device memory to, most likely,
@@ -334,9 +331,6 @@ static bool load_primary(struct mm_stage1_locked stage1_locked,
 		}
 	}
 
-	dlog_error("@@@@: 1\n");
-	mm_vm_dump(&vm_locked.vm->ptable);
-
 	/* Map normal memory as such to permit caching, execution, etc. */
 	for (i = 0; i < params->mem_ranges_count; ++i) {
 		if (!vm_identity_map(vm_locked, params->mem_ranges[i].begin,
@@ -351,8 +345,6 @@ static bool load_primary(struct mm_stage1_locked stage1_locked,
 		}
 	}
 
-	dlog_error("@@@@: 2\n");
-	mm_vm_dump(&vm_locked.vm->ptable);
 	/* Map device memory as such to prevent execution, speculation etc. */
 	for (i = 0; i < params->device_mem_ranges_count; ++i) {
 		if (!vm_identity_map(
@@ -366,8 +358,6 @@ static bool load_primary(struct mm_stage1_locked stage1_locked,
 		}
 	}
 
-	dlog_error("@@@@: 3\n");
-	mm_vm_dump(&vm_locked.vm->ptable);
 	if (!load_common(stage1_locked, vm_locked, manifest_vm, ppool)) {
 		ret = false;
 		goto out;
@@ -379,26 +369,14 @@ static bool load_primary(struct mm_stage1_locked stage1_locked,
 		goto out;
 	}
 
-	dlog_error("@@@@: 4\n");
-	mm_vm_dump(&vm_locked.vm->ptable);
 	if (!plat_iommu_unmap_iommus(vm_locked, ppool)) {
 		dlog_error("Unable to unmap IOMMUs from primary VM.\n");
 		ret = false;
 		goto out;
 	}
 
-	dlog_error("@@@@: 5\n");
-	mm_vm_dump(&vm_locked.vm->ptable);
-	if (gic_init()) {
-		panic("Unable to init gic controller\n");
-	}
+	virtual_device_init(vm_locked.vm, ppool);
 
-	dlog_error("@@@@: 6\n");
-	mm_vm_dump(&vm_locked.vm->ptable);
-	//virtual_device_init(vm_locked.vm, ppool);
-
-	dlog_error("@@@@: 7\n");
-	mm_vm_dump(&vm_locked.vm->ptable);
 	dlog_info("Loaded primary VM with %u vCPUs, entry at %#x.\n",
 		  vm->vcpu_count, pa_addr(primary_begin));
 
@@ -412,7 +390,7 @@ static bool load_primary(struct mm_stage1_locked stage1_locked,
 
 out:
 	dlog_error("--->>>>Dump primary S2 page table:\n");
-	//mm_vm_dump(&vm_locked.vm->ptable);
+
 	vm_unlock(&vm_locked);
 
 	return ret;

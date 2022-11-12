@@ -46,28 +46,33 @@ int vdev_init(struct vdev *vdev, uint64_t base, uint32_t size)
     return 0;
 }
 
-int register_one_vdev(struct vm *vm, struct vdev *vdev, struct mpool *ppool)
+bool register_one_vdev(struct vm *vm, struct vdev *vdev, struct mpool *ppool)
 {
-    int ret = -EINVAL;
+    bool success = false;
 
     if (!vm || !vdev)
-        return ret;
+        return success;
 
     list_add_tail(&vm->vdev_list, &vdev->list);
-    dlog_error("Trying to unmap S2 of vm-%d: 0x%08x - 0x%08x\n", \
-	vm->id, vdev->gvm_paddr, vdev->gvm_paddr + vdev->mem_size);
 
-    ret = mm_vm_unmap(&vm->ptable, (paddr_t){vdev->gvm_paddr},
+    dlog_error("Trying to unmap S2 of vm-%d: 0x%08x - 0x%08x\n", \
+	    vm->id, vdev->gvm_paddr, vdev->gvm_paddr + vdev->mem_size);
+
+	mm_vm_dump(&vm->ptable);
+
+    success = mm_vm_unmap(&vm->ptable, (paddr_t){vdev->gvm_paddr},
         (paddr_t){vdev->gvm_paddr + vdev->mem_size}, ppool);
-    if (ret) {
+    if (!success) {
         dlog_error("vdev - '%s': failed to register to VM\n", vdev->name);
     }
 
-    return 0;
+	mm_vm_dump(&vm->ptable);
+
+    return success;
 }
 
 int vdev_mmio_emulation(
-    struct vcpu *vcpu, int write, uint32_t size, uint64_t addr, uint64_t *value)
+    struct vcpu *vcpu, int write, uint8_t size, uint64_t addr, uint64_t *value)
 {
     struct vm *vm = current_vm();
     struct vdev *vdev;
@@ -77,9 +82,9 @@ int vdev_mmio_emulation(
         if ((addr >= vdev->gvm_paddr) &&  \
             (addr < vdev->gvm_paddr + vdev->mem_size)) {
             if (write) {
-                return vdev->write(vdev, vcpu, addr, value);
+                return vdev->write(vdev, vcpu, addr, size, value);
             } else {
-                return vdev->read(vdev, vcpu, addr, value);
+                return vdev->read(vdev, vcpu, addr, size, value);
             }
         }
     }

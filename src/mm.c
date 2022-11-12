@@ -20,6 +20,8 @@
 #include "hf/plat/console.h"
 #include "hf/static_assert.h"
 
+#include "hf/device/gic.h"
+
 /**
  * This file has functions for managing the level 1 and 2 page tables used by
  * Hafnium. There is a level 1 mapping used by Hafnium itself to access memory,
@@ -1208,6 +1210,8 @@ bool mm_init(struct mpool *ppool)
 
 	/* Let console driver map pages for itself. */
 	plat_console_mm_init(stage1_locked, ppool);
+
+    gic_mm_init(stage1_locked, ppool);
 
 	/* Map each section. */
 	mm_identity_map(stage1_locked, layout_text_begin(), layout_text_end(),

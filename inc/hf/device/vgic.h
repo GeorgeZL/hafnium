@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "hf/mm.h"
+#include "hf/vm.h"
 
-int gic_init(void);
-int gic_secondary_init(void);
-void gic_mm_init(struct mm_stage1_locked stage1_locked, struct mpool *ppool);
+int vgic_init(struct vm *vm, struct mpool *ppool);

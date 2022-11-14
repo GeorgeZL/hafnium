@@ -18,6 +18,7 @@
 #include <hf/vcpu.h>
 #include <hf/dlog.h>
 #include <hf/check.h>
+#include <hf/interrupt.h>
 #include "gicv2.h"
 
 #define NAME_LNE    20
@@ -92,6 +93,8 @@ struct vgicv2_dev {
 
 	uintpaddr_t gicd_base;
 	uint32_t gicd_size;
+
+    struct spi_table irq_map;
 };
 
 struct vgic_set {
@@ -131,6 +134,23 @@ static uint32_t vgicv2_get_reg_type(uint32_t offset)
     return GICD_TYPE_INVAL;
 }
 
+static uint32_t vgicv2_get_mask(struct vgicv2_dev *vgic, uint32_t offset)
+{
+    uint32_t type = vgicv2_get_reg_type(offset);
+    uint32_t stride = reg_infos[type].stride;
+    uint32_t irq = (offset - reg_infos[type].start) * BITS_PER_BYTE / stride;
+    uint8_t token = (1 << stride) - 1;
+    uint8_t count = (BITS_PER_LONG / stride);
+    uint32_t mask = 0;
+    uint32_t map = vgic->irq_map.map[BIT_WORD(irq)];
+
+    for (int i = 0; i < count; i++) {
+        if (map & (1 << i))
+            mask |= token << (stride * i);
+    }
+
+    return mask;
+}
 
 static struct vgic_set *get_vgic_set(void)
 {
@@ -192,11 +212,12 @@ static void release_vgic_device(struct vgic_set *set, struct vgicv2_dev *device)
     }
 }
 
-static int vgicv2_read(struct vcpu *vcpu, struct vgicv2_dev *gic,
+static int vgicv2_read(struct vcpu *vcpu, struct vgicv2_dev *vgic,
 		unsigned long offset, uint8_t size, unsigned long *v)
 {
 	uint32_t *value = (uint32_t *)v;
     uint32_t type = GICD_TYPE_INVAL;
+    uint32_t mask = vgicv2_get_mask(vgic, offset);
 
     type = vgicv2_get_reg_type(offset);
 
@@ -238,16 +259,16 @@ static int vgicv2_read(struct vcpu *vcpu, struct vgicv2_dev *gic,
     dlog_error("gic to read register: '%s : 0x%x'\n", vgic_get_irq_name(type), offset);
     switch (size) {
         case 0:
-            *value = readb_gicd(offset);
+            *value = mask & readb_gicd(offset);
             break;
         case 1:
-            *value = readw_gicd(offset);
+            *value = mask & readw_gicd(offset);
             break;
         case 2:
-            *value = readl_gicd(offset);
+            *value = mask & readl_gicd(offset);
             break;
         case 3:
-            *value = readq_gicd(offset);
+            *value = mask & readq_gicd(offset);
             break;
         default:
             break;
@@ -265,8 +286,6 @@ static int vgicv2_write(struct vcpu *vcpu, struct vgicv2_dev *gic,
 
     switch (type) {
         case GICD_TYPE_CTLR:
-            break;
-        case GICD_TYPE_TYPER:
             break;
         case GICD_TYPE_IGRPn:
             break;
@@ -290,8 +309,12 @@ static int vgicv2_write(struct vcpu *vcpu, struct vgicv2_dev *gic,
             break;
         case GICD_TYPE_ICFn:
             break;
+
+        case GICD_TYPE_TYPER:
         case GICD_TYPE_IIDR:
+            dlog_error("Register(%s) could not be written\n", vgic_get_irq_name(type));
             break;
+
         default:
             dlog_error("Invalid gicd register (0x%x) to write\n", offset);
             break;

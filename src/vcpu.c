@@ -151,7 +151,7 @@ static bool vcpu_handle_vdev_emulation(struct vcpu *current, struct vcpu_fault_i
 		/* TODO: alignment check */
 
         if (f->wnr == DAT_ISS_WNR_WR) {
-            value = current->regs.r[f->srt];
+            value = (f->srt > 30) ? 0x0 : current->regs.r[f->srt];
             retval = vdev_mmio_emulation(
                     current, write, f->sas, f->ipaddr.ipa, &value);
         } else {

@@ -41,6 +41,13 @@
 	stp x12, x13, [x18, #VCPU_REGS + 8 * 12]
 	stp x14, x15, [x18, #VCPU_REGS + 8 * 14]
 	stp x16, x17, [x18, #VCPU_REGS + 8 * 16]
+	stp x18, x19, [x18, #VCPU_REGS + 8 * 18]
+	stp x20, x21, [x18, #VCPU_REGS + 8 * 20]
+	stp x22, x23, [x18, #VCPU_REGS + 8 * 22]
+	stp x24, x25, [x18, #VCPU_REGS + 8 * 24]
+	stp x26, x27, [x18, #VCPU_REGS + 8 * 26]
+	stp x28, x29, [x18, #VCPU_REGS + 8 * 28]
+
 	stp x29, x30, [x18, #VCPU_REGS + 8 * 29]
 
 	/* x18 was saved on the stack, so we move it to vCPU regs buffer. */
@@ -863,7 +870,13 @@ vcpu_restore_volatile_and_run:
 	ldp x12, x13, [x0, #VCPU_REGS + 8 * 12]
 	ldp x14, x15, [x0, #VCPU_REGS + 8 * 14]
 	ldp x16, x17, [x0, #VCPU_REGS + 8 * 16]
-	ldr x18, [x0, #VCPU_REGS + 8 * 18]
+	ldp x18, x19, [x0, #VCPU_REGS + 8 * 18]
+	ldp x20, x21, [x0, #VCPU_REGS + 8 * 20]
+	ldp x22, x23, [x0, #VCPU_REGS + 8 * 22]
+	ldp x24, x25, [x0, #VCPU_REGS + 8 * 24]
+	ldp x26, x27, [x0, #VCPU_REGS + 8 * 26]
+	ldp x28, x29, [x0, #VCPU_REGS + 8 * 28]
+
 	ldp x29, x30, [x0, #VCPU_REGS + 8 * 29]
 
 	/* Restore return address & mode. */

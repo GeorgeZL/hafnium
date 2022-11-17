@@ -31,6 +31,7 @@
 #include "hf/vm.h"
 #include "hf/device/gic.h"
 #include "hf/device/vdev.h"
+#include "hf/interrupt.h"
 
 #include "vmapi/hf/call.h"
 #include "vmapi/hf/ffa.h"
@@ -940,6 +941,17 @@ static bool init_other_world_vm(struct mpool *ppool)
 	return arch_other_world_vm_init(other_world_vm, ppool);
 }
 
+static void update_hwirq_config(
+    const struct manifest_vm *manifest, ffa_vm_id_t vm_id)
+{
+    uint32_t index = 0;
+    const struct partition_manifest *partition = &manifest->partition;
+
+    for (index = 0; index < partition->irq_count; index++) {
+        vm_hwirq_add(partition->irqs_map[index], vm_id);
+    }
+}
+
 /*
  * Loads alls VMs from the manifest.
  */
@@ -995,6 +1007,8 @@ bool load_vms(struct mm_stage1_locked stage1_locked,
 		uint64_t mem_size;
 		paddr_t secondary_mem_begin;
 		paddr_t secondary_mem_end;
+
+        update_hwirq_config(manifest_vm, vm_id);
 
 		if (vm_id == HF_PRIMARY_VM_ID) {
 			continue;

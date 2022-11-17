@@ -356,6 +356,8 @@ static enum manifest_return_code parse_vm_common(const struct fdt_node *node,
 						 ffa_vm_id_t vm_id)
 {
 	struct uint32list_iter smcs;
+	struct uint32list_iter irqs;
+    uint32_t hwirq;
 	size_t idx;
 
 	TRY(read_bool(node, "is_ffa_partition", &vm->is_ffa_partition));
@@ -364,6 +366,7 @@ static enum manifest_return_code parse_vm_common(const struct fdt_node *node,
 
 	TRY(read_string(node, "debug_name", &vm->debug_name));
 
+    /* smc */
 	TRY(read_optional_uint32list(node, "smc_whitelist", &smcs));
 	while (uint32list_has_next(&smcs) &&
 	       vm->smc_whitelist.smc_count < MAX_SMCS) {
@@ -378,6 +381,16 @@ static enum manifest_return_code parse_vm_common(const struct fdt_node *node,
 	TRY(read_bool(node, "smc_whitelist_permissive",
 		      &vm->smc_whitelist.permissive));
 
+    /* irqs */
+    TRY(read_optional_uint32list(node, "interrupts", &irqs));
+    vm->partition.irq_count = 0;
+    while (uint32list_has_next(&irqs)) {
+        TRY(uint32list_get_next(&irqs, &hwirq));
+        dlog_error("irq: 0x%x\n", hwirq);
+        vm->partition.irqs_map[vm->partition.irq_count++] = hwirq;
+    }
+
+    /* cpus */
     TRY(read_uint16(node, "vcpu_count", &vm->vcpu_count));
 	if (vm_id != HF_PRIMARY_VM_ID) {
 		TRY(read_uint64(node, "mem_size", &vm->secondary.mem_size));

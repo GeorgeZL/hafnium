@@ -19,6 +19,7 @@
 #include <hf/dlog.h>
 #include <hf/check.h>
 #include <hf/interrupt.h>
+#include <hf/bitops.h>
 #include "gicv2.h"
 
 #define NAME_LNE    20
@@ -28,21 +29,21 @@ enum GICD_TYPE_GROUP {
     GICD_TYPE_CTLR = 0x1,
     GICD_TYPE_TYPER,
     GICD_TYPE_IIDR,
-    GICD_TYPE_IGRPn,
-    GICD_TYPE_ISEn,
-    GICD_TYPE_ICEn,
-    GICD_TYPE_ISPn,
-    GICD_TYPE_ICPn,
-    GICD_TYPE_ISAn,
-    GICD_TYPE_ICAn,
-    GICD_TYPE_IPRn,
-    GICD_TYPE_ITAnR,
-    GICD_TYPE_ITAn,
-    GICD_TYPE_ICFn,
-    GICD_TYPE_NSAn,
+    GICD_TYPE_IGROUPR,
+    GICD_TYPE_ISENABLER,
+    GICD_TYPE_ICENABLER,
+    GICD_TYPE_ISPENDR,
+    GICD_TYPE_ICPENDR,
+    GICD_TYPE_ISACTIVER,
+    GICD_TYPE_ICACTIVER,
+    GICD_TYPE_IPRIORITYR,
+    GICD_TYPE_ITARGETSRR,
+    GICD_TYPE_ITARGETSR,
+    GICD_TYPE_ICFGR,
+    GICD_TYPE_NSACR,
     GICD_TYPE_SGIR,
-    GICD_TYPE_CPSGIn,
-    GICD_TYPE_SPSGIn,
+    GICD_TYPE_CPENDSGIR,
+    GICD_TYPE_SPENDSGIR,
 
     GICD_TYPE_MAX,
 };
@@ -61,26 +62,30 @@ struct vgicv2_reg_info {
 static struct vgicv2_reg_info reg_infos[GICD_TYPE_MAX] = {
 #define REG_INFO(name, s, e, stride)    \
     [GICD_TYPE_##name] = {"GICD_TYPE_"#name, s, e, stride}
-    REG_INFO(CTLR,  0x0,    0x0,    0x0),
-    REG_INFO(TYPER, 0x4,    0x4,    0x0),
-    REG_INFO(IIDR,  0x8,    0x8,    0x0),
-    REG_INFO(IGRPn, 0x80,   0xFC,   0x1),
-    REG_INFO(ISEn,  0x100,  0x17C,  0x1),
-    REG_INFO(ICEn,  0x180,  0x1FC,  0x1),
-    REG_INFO(ISPn,  0x200,  0x27C,  0x1),
-    REG_INFO(ICPn,  0x280,  0x2FC,  0x1),
-    REG_INFO(ISAn,  0x300,  0x37C,  0x1),
-    REG_INFO(ICAn,  0x380,  0x3FC,  0x1),
-    REG_INFO(IPRn,  0x400,  0x7F8,  0x8),
-    REG_INFO(ITAnR, 0x800,  0x81C,  0x8),
-    REG_INFO(ITAn,  0x820,  0xBF8,  0x8),
-    REG_INFO(ICFn,  0xC00,  0xCFC,  0x2),
-    REG_INFO(NSAn,  0xE00,  0xEFC,  0x2),
-    REG_INFO(SGIR,  0xF00,  0xF00,  0x0),
-    REG_INFO(CPSGIn,    0xF10,  0xF1C,  0x8),
-    REG_INFO(SPSGIn,    0xF20,  0xF2C,  0x8),
+    REG_INFO(INVAL,     0xffffffff,         0xffffffff,     0x0),
+    REG_INFO(CTLR,      GICD_CTLR,          GICD_CTLR,      0x0),
+    REG_INFO(TYPER,     GICD_TYPER,         GICD_TYPER,     0x0),
+    REG_INFO(IIDR,      GICD_IIDR,          GICD_IIDR,      0x0),
+    REG_INFO(IGROUPR,   GICD_IGROUPR,       GICD_IGROUPRN,  0x1),
+    REG_INFO(ISENABLER, GICD_ISENABLER,     GICD_ISENABLERN,    0x1),
+    REG_INFO(ICENABLER, GICD_ICENABLER,     GICD_ICENABLERN,    0x1),
+    REG_INFO(ISPENDR,   GICD_ISPENDR,       GICD_ISPENDRN,  0x1),
+    REG_INFO(ICPENDR,   GICD_ICPENDR,       GICD_ICPENDRN,  0x1),
+    REG_INFO(ISACTIVER, GICD_ISACTIVER,     GICD_ISACTIVERN,    0x1),
+    REG_INFO(ICACTIVER, GICD_ICACTIVER,     GICD_ICACTIVERN,    0x1),
+    REG_INFO(IPRIORITYR,    GICD_IPRIORITYR,    GICD_IPRIORITYRN,   0x8),
+    REG_INFO(ITARGETSRR,    GICD_ITARGETSRR,     GICD_ITARGETSR7,    0x8),
+    REG_INFO(ITARGETSR, GICD_ITARGETSR8,    GICD_ITARGETSRN,    0x8),
+    REG_INFO(ICFGR,     GICD_ICFGR,         GICD_ICFGRN,    0x2),
+    REG_INFO(NSACR,     GICD_NSACR,         GICD_NSACRN,    0x2),
+    REG_INFO(SGIR,      GICD_SGIR,          GICD_SGIR,      0x0),
+    REG_INFO(CPENDSGIR, GICD_CPENDSGIR,     GICD_CPENDSGIRN,    0x8),
+    REG_INFO(SPENDSGIR, GICD_SPENDSGIR,     GICD_SPENDSGIRN,    0x8),
 #undef REG_INFO
 };
+
+#define vdev_to_vgicv2(vdev) \
+	(struct vgicv2_dev *)CONTAINER_OF(vdev, struct vgicv2_dev, vdev)
 
 struct vgicv2_dev {
 	struct vdev vdev;
@@ -93,8 +98,6 @@ struct vgicv2_dev {
 
 	uintpaddr_t gicd_base;
 	uint32_t gicd_size;
-
-    struct spi_table irq_map;
 };
 
 struct vgic_set {
@@ -105,14 +108,7 @@ struct vgic_set {
 };
 
 static struct vgic_set vgic_set = {0};
-
 void *memset(void *s, int c, size_t n);
-void *memcpy(void *dst, const void *src, size_t n);
-void *memmove(void *dst, const void *src, size_t n);
-char *strcpy(char *des, const char *src);
-
-#define vdev_to_vgicv2(vdev) \
-	(struct vgicv2_dev *)CONTAINER_OF(vdev, struct vgicv2_dev, vdev)
 
 char *vgic_get_irq_name(uint32_t type)
 {
@@ -132,24 +128,6 @@ static uint32_t vgicv2_get_reg_type(uint32_t offset)
     }
 
     return GICD_TYPE_INVAL;
-}
-
-static uint32_t vgicv2_get_mask(struct vgicv2_dev *vgic, uint32_t offset)
-{
-    uint32_t type = vgicv2_get_reg_type(offset);
-    uint32_t stride = reg_infos[type].stride;
-    uint32_t irq = (offset - reg_infos[type].start) * BITS_PER_BYTE / stride;
-    uint8_t token = (1 << stride) - 1;
-    uint8_t count = (BITS_PER_LONG / stride);
-    uint32_t mask = 0;
-    uint32_t map = vgic->irq_map.map[BIT_WORD(irq)];
-
-    for (int i = 0; i < count; i++) {
-        if (map & (1 << i))
-            mask |= token << (stride * i);
-    }
-
-    return mask;
 }
 
 static struct vgic_set *get_vgic_set(void)
@@ -175,6 +153,10 @@ static void vgicv2_device_init(struct vgicv2_dev *device)
 {
     memset(device, 0, sizeof(struct vgicv2_dev));
     sl_init(&device->lock);
+
+    device->ctlr = gicv2_get_ctrl();
+    device->typer = gicv2_get_typer();
+    device->iidr = gicv2_get_iidr();
 }
 
 static struct vgicv2_dev *request_vgic_device(struct vgic_set *set)
@@ -215,64 +197,60 @@ static void release_vgic_device(struct vgic_set *set, struct vgicv2_dev *device)
 static int vgicv2_read(struct vcpu *vcpu, struct vgicv2_dev *vgic,
 		unsigned long offset, uint8_t size, unsigned long *v)
 {
-	uint32_t *value = (uint32_t *)v;
     uint32_t type = GICD_TYPE_INVAL;
-    uint32_t mask = vgicv2_get_mask(vgic, offset);
+    uint32_t value = 0;
+    uint32_t irq;
+    uint32_t off;
+    struct vgicv2_reg_info *info = NULL;
 
     type = vgicv2_get_reg_type(offset);
+    info = &reg_infos[type];
+    irq = (info->stride != 0) ? \
+        ((align_down(offset - info->start, 4) * BITS_PER_BYTE) / info->stride) : INVALID_INTRID;
 
     switch (type) {
         case GICD_TYPE_CTLR:
+            value = vgic->ctlr;
             break;
+
         case GICD_TYPE_TYPER:
+            value = vgic->typer;
             break;
+
         case GICD_TYPE_IIDR:
+            value = vgic->iidr;
             break;
 
-        case GICD_TYPE_IGRPn:
-            break;
-        case GICD_TYPE_ISEn:
-            break;
-        case GICD_TYPE_ICEn:
-            break;
-        case GICD_TYPE_ISPn:
-            break;
-        case GICD_TYPE_ICPn:
-            break;
-        case GICD_TYPE_ISAn:
-            break;
-        case GICD_TYPE_ICAn:
-            break;
-        case GICD_TYPE_IPRn:
-            break;
-        case GICD_TYPE_ITAnR:
-            break;
-        case GICD_TYPE_ITAn:
-            break;
-        case GICD_TYPE_ICFn:
-            break;
-        default:
-            dlog_error("Invalid gicd register (0x%x) to read\n", offset);
+#define CASEX(name) \
+        case GICD_TYPE_##name:  \
+            value = gicv2_vdev_get_##name(irq); \
+            break
+
+        CASEX(IGROUPR);
+        CASEX(ISENABLER);
+        CASEX(ICENABLER);
+        CASEX(ISPENDR);
+        CASEX(ICPENDR);
+        CASEX(ISACTIVER);
+        CASEX(ICACTIVER);
+        CASEX(IPRIORITYR);
+        CASEX(ITARGETSR);
+        CASEX(ITARGETSRR);
+        CASEX(ICFGR);
+        CASEX(NSACR);
+#undef CASEX
+
+       default:
+            dlog_error("Invalid gicd register (0x%x - %s) to read\n", offset, vgic_get_irq_name(type));
             break;
     }
 
-    dlog_error("gic to read register: '%s : 0x%x'\n", vgic_get_irq_name(type), offset);
-    switch (size) {
-        case 0:
-            *value = mask & readb_gicd(offset);
-            break;
-        case 1:
-            *value = mask & readw_gicd(offset);
-            break;
-        case 2:
-            *value = mask & readl_gicd(offset);
-            break;
-        case 3:
-            *value = mask & readq_gicd(offset);
-            break;
-        default:
-            break;
+    if (size != sizeof(uint32_t)) {
+        off = (offset - info->start) - align_down(offset - info->start, 4);
+        value >>= off * BITS_PER_BYTE;
+        value &= (1 << (size * BITS_PER_BYTE)) - 1;
     }
+    *v = value;
 
 	return 0;
 }
@@ -281,60 +259,53 @@ static int vgicv2_write(struct vcpu *vcpu, struct vgicv2_dev *gic,
 		unsigned long offset, uint8_t size, unsigned long *v)
 {
     uint32_t type = GICD_TYPE_INVAL;
+    uint32_t value, value_orin = *v;
+    uint32_t irq;
+    uint32_t off;
+    struct vgicv2_reg_info *info = NULL;
 
     type = vgicv2_get_reg_type(offset);
+    info = &reg_infos[type];
+    irq = (info->stride != 0) ? \
+        ((align_down(offset - info->start, 4) * BITS_PER_BYTE) / info->stride) : INVALID_INTRID;
+    if (size != sizeof(uint32_t)) {
+        value_orin &= (1 << (size * BITS_PER_BYTE)) - 1;
+        off = (offset - info->start) - align_down(offset - info->start, 4);
+        value_orin <<= off * BITS_PER_BYTE;
+    }
+    value = value_orin;
 
     switch (type) {
         case GICD_TYPE_CTLR:
-            break;
-        case GICD_TYPE_IGRPn:
-            break;
-        case GICD_TYPE_ISEn:
-            break;
-        case GICD_TYPE_ICEn:
-            break;
-        case GICD_TYPE_ISPn:
-            break;
-        case GICD_TYPE_ICPn:
-            break;
-        case GICD_TYPE_ISAn:
-            break;
-        case GICD_TYPE_ICAn:
-            break;
-        case GICD_TYPE_IPRn:
-            break;
-        case GICD_TYPE_ITAn:
-            break;
-        case GICD_TYPE_ITAnR:
-            break;
-        case GICD_TYPE_ICFn:
+            gic->ctlr = value;
             break;
 
-        case GICD_TYPE_TYPER:
         case GICD_TYPE_IIDR:
-            dlog_error("Register(%s) could not be written\n", vgic_get_irq_name(type));
+        case GICD_TYPE_TYPER:
+            dlog_error("reg-%x (%s) write is not supported\n", offset, vgic_get_irq_name(type));
             break;
 
-        default:
-            dlog_error("Invalid gicd register (0x%x) to write\n", offset);
-            break;
-    }
+#define CASEX(name) \
+        case GICD_TYPE_##name:  \
+            gicv2_vdev_set_##name(irq, value); \
+            break
 
-    dlog_error("gic to write register: '%s : 0x%x': 0x%x\n", vgic_get_irq_name(type), offset, *v);
-    switch (size) {
-        case 0:
-            writeb_gicd(*v & 0xff, offset);
-            break;
-        case 1:
-            writew_gicd(*v & 0xffff, offset);
-            break;
-        case 2:
-            writel_gicd(*v & 0xffffffff, offset);
-            break;
-        case 3:
-            writeq_gicd(*v, offset);
-            break;
+        CASEX(IGROUPR);
+        CASEX(NSACR);
+        CASEX(ISACTIVER);
+        CASEX(ICACTIVER);
+        CASEX(IPRIORITYR);
+        CASEX(ITARGETSRR);
+        CASEX(ISPENDR);
+        CASEX(ICPENDR);
+        CASEX(ICENABLER);
+        CASEX(ICFGR);
+        CASEX(ISENABLER);
+        CASEX(ITARGETSR);
+#undef CASEX
+
         default:
+            dlog_error("Invalid gicd register (0x%x) to write\n", offset, vgic_get_irq_name(type));
             break;
     }
 

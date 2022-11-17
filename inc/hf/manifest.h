@@ -14,6 +14,7 @@
 #include "hf/memiter.h"
 #include "hf/string.h"
 #include "hf/vm.h"
+#include "hf/bitops.h"
 
 #define MANIFEST_INVALID_ADDRESS UINT64_MAX
 #define MANIFEST_INVALID_ID UINT32_MAX
@@ -31,6 +32,9 @@
 /* Highest possible value for the boot-order field. */
 #define DEFAULT_BOOT_ORDER 0xFFFF
 #define DEFAULT_BOOT_GP_REGISTER UINT32_C(-1)
+
+#define MAX_SPI_COUNT   1024
+#define IRQ_BITMAP_SIZE BITS_TO_LONGS(MAX_SPI_COUNT)
 
 enum run_time_el {
 	EL1 = 0,
@@ -117,6 +121,9 @@ struct partition_manifest {
 	ffa_vm_id_t id;
 	/** Aux ids for mem transactions - optional */
 	ffa_vm_id_t aux_id;
+
+    uint32_t irq_count;
+    uint32_t irqs_map[MAX_SPI_COUNT];
 
 	/* NOTE: optional name field maps to VM debug_name field */
 

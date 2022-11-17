@@ -1,6 +1,5 @@
 #pragma once
-#include <stddef.h>
-#include <stdint.h>
+#include <hf/arch/std.h>
 
 #define BITS_PER_LONG       32
 #define BITS_PER_BYTE		8

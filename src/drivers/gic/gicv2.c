@@ -68,7 +68,6 @@ struct gicv2_device {
     uintpaddr_t gicd_base;
     uint32_t frame_size;
     struct spinlock lock;
-    struct spi_table spi;
 
     uint32_t nr_lines;
     uint32_t cpus;
@@ -99,8 +98,6 @@ static void gicv2_device_init(void)
     sl_init(&device->lock);
     device->gicd_base = GICD_BASE;
     device->frame_size = 0x10000;
-
-    spi_table_init(&device->spi);
 }
 
 void writeb_gicd(uint8_t val, unsigned int offset)
@@ -160,7 +157,7 @@ uint64_t readq_gicd(unsigned int offset)
 void gicv2_clear_pending(uint32_t irq)
 {
 	writel_gicd(1UL << (irq % 32), GICD_ICPENDR + (irq / 32) * 4);
-	dsb();
+	//dsb();
 }
 
 int gicv2_set_irq_priority(uint32_t irq, uint32_t pr)
@@ -191,14 +188,13 @@ int gicv2_set_irq_affinity(uint32_t irq, uint32_t pcpu)
 	return 0;
 }
 
-
 void gicv2_mask_irq(uint32_t irq)
 {
     struct gicv2_device *device = gicv2_get_device();
 
 	sl_lock(&device->lock);
 	writel_gicd(1UL << (irq % 32), GICD_ICENABLER + (irq / 32) * 4);
-	dsb();
+	//dsb();
 	sl_unlock(&device->lock);
 }
 
@@ -208,7 +204,7 @@ void gicv2_unmask_irq(uint32_t irq)
 
 	sl_lock(&device->lock);
 	writel_gicd(1UL << (irq % 32), GICD_ISENABLER + (irq / 32) * 4);
-	dsb();
+	//dsb();
 	sl_unlock(&device->lock);
 }
 
@@ -220,6 +216,200 @@ void gicv2_mask_irq_cpu(uint32_t irq, int cpu)
 void gicv2_unmask_irq_cpu(uint32_t irq, int cpu)
 {
 	dlog_info("not support unmask irq_percpu\n");
+}
+
+/* interfaces for vdev */
+uint32_t gicv2_vdev_get_ise(uint32_t irq)
+{
+    struct gicv2_device *device = gicv2_get_device();
+    uint32_t value;
+
+    sl_lock(&device->lock);
+    value = readl_gicd(GICD_ISENABLER + (irq / 32) * 4);
+    sl_unlock(&device->lock);
+
+    for (int i = 0; i < 32; i++) {
+        if (!hwirq_is_belongs_current(irq + i)) {
+            value &= ~(1 << i);
+        }
+    }
+
+    return value;
+}
+
+uint32_t gicv2_vdev_get_ice(uint32_t irq)
+{
+    struct gicv2_device *device = gicv2_get_device();
+    uint32_t value;
+
+    sl_lock(&device->lock);
+    value = readl_gicd(GICD_ICENABLER + (irq / 32) * 4);
+    sl_unlock(&device->lock);
+
+    for (int i = 0; i < 32; i++) {
+        if (!hwirq_is_belongs_current(irq + i)) {
+            value &= ~(1 << i);
+        }
+    }
+
+    return value;
+}
+
+uint32_t gicv2_vdev_get_isp(uint32_t irq)
+{
+    struct gicv2_device *device = gicv2_get_device();
+    uint32_t value;
+
+    sl_lock(&device->lock);
+    value = readl_gicd(GICD_ISPENDR + (irq / 32) * 4);
+    sl_unlock(&device->lock);
+
+    for (int i = 0; i < 32; i++) {
+        if (!hwirq_is_belongs_current(irq + i)) {
+            value &= ~(1 << i);
+        }
+    }
+
+    return value;
+}
+
+#define DEFINE_IRQ_DEAL1_FUNC(name)  \
+    uint32_t gicv2_vdev_get_##name(uint32_t irq)   \
+    {   \
+        struct gicv2_device *device = gicv2_get_device();   \
+        uint32_t value; \
+        \
+        irq = align_down(irq, 32);  \
+        sl_lock(&device->lock); \
+        value = readl_gicd(GICD_##name + (irq / 32) * 4); \
+        sl_unlock(&device->lock); \
+        \
+        for (int i = 0; i < 32; i++) {  \
+            if (!hwirq_is_belongs_current(irq + i)) {   \
+                value &= ~(1 << i); \
+            }   \
+        }   \
+        \
+        return value;   \
+    }   \
+    \
+    void gicv2_vdev_set_##name(uint32_t irq, uint32_t value) \
+    {   \
+        struct gicv2_device *device = gicv2_get_device();   \
+        uint32_t real_value = value;    \
+        \
+        irq = align_down(irq, 32);  \
+        for (int i = 0; i < 32; i++) {  \
+            if (!hwirq_is_belongs_current(irq + i)) {   \
+                real_value &= ~(1 << i);    \
+            }   \
+        }   \
+        \
+        sl_lock(&device->lock); \
+        writel_gicd(real_value, GICD_##name + (irq / 32) * 4); \
+        sl_unlock(&device->lock);   \
+    }
+
+#define DEFINE_IRQ_DEAL2_FUNC(name)  \
+    uint32_t gicv2_vdev_get_##name(uint32_t irq)   \
+    {   \
+        struct gicv2_device *device = gicv2_get_device();   \
+        uint32_t value; \
+        \
+        irq = align_down(irq, 16);  \
+        sl_lock(&device->lock); \
+        value = readl_gicd(GICD_##name + (irq / 16) * 4); \
+        sl_unlock(&device->lock); \
+        \
+        for (int i = 0; i < 16; i++) {  \
+            if (!hwirq_is_belongs_current(irq + i)) {   \
+                value &= ~(0x3 << i); \
+            }   \
+        }   \
+        \
+        return value;   \
+    }   \
+    \
+    void gicv2_vdev_set_##name(uint32_t irq, uint32_t value) \
+    {   \
+        struct gicv2_device *device = gicv2_get_device();   \
+        uint32_t real_value = value;    \
+        \
+        irq = align_down(irq, 16);  \
+        for (int i = 0; i < 16; i++) {  \
+            if (!hwirq_is_belongs_current(irq + i)) {   \
+                real_value &= ~(0x3 << i);    \
+            }   \
+        }   \
+        \
+        sl_lock(&device->lock); \
+        writel_gicd(real_value, GICD_##name + (irq / 16) * 4); \
+        sl_unlock(&device->lock);   \
+    }
+
+#define DEFINE_IRQ_DEAL4_FUNC(name)  \
+    uint32_t gicv2_vdev_get_##name(uint32_t irq)   \
+    {   \
+        struct gicv2_device *device = gicv2_get_device();   \
+        uint32_t value; \
+        \
+        irq = align_down(irq, 4);  \
+        sl_lock(&device->lock); \
+        value = readl_gicd(GICD_##name + (irq / 4) * 4); \
+        sl_unlock(&device->lock); \
+        \
+        for (int i = 0; i < 4; i++) {  \
+            if (!hwirq_is_belongs_current(irq + i)) {   \
+                value &= ~(0xff << i); \
+            }   \
+        }   \
+        \
+        return value;   \
+    }   \
+    \
+    void gicv2_vdev_set_##name(uint32_t irq, uint32_t value) \
+    {   \
+        struct gicv2_device *device = gicv2_get_device();   \
+        uint32_t real_value = value;    \
+        \
+        irq = align_down(irq, 4);  \
+        for (int i = 0; i < 4; i++) {  \
+            if (!hwirq_is_belongs_current(irq + i)) {   \
+                real_value &= ~(0xff << i);    \
+            }   \
+        }   \
+        \
+        sl_lock(&device->lock); \
+        writel_gicd(real_value, GICD_##name + (irq / 4) * 4); \
+        sl_unlock(&device->lock);   \
+    }
+
+DEFINE_IRQ_DEAL1_FUNC(IGROUPR)
+DEFINE_IRQ_DEAL1_FUNC(ISENABLER)
+DEFINE_IRQ_DEAL1_FUNC(ICENABLER)
+DEFINE_IRQ_DEAL1_FUNC(ISPENDR)
+DEFINE_IRQ_DEAL1_FUNC(ICPENDR)
+DEFINE_IRQ_DEAL1_FUNC(ISACTIVER)
+DEFINE_IRQ_DEAL1_FUNC(ICACTIVER)
+DEFINE_IRQ_DEAL4_FUNC(IPRIORITYR)
+DEFINE_IRQ_DEAL4_FUNC(ITARGETSR)
+DEFINE_IRQ_DEAL4_FUNC(ITARGETSRR)
+DEFINE_IRQ_DEAL2_FUNC(ICFGR)
+DEFINE_IRQ_DEAL2_FUNC(NSACR)
+
+uint32_t gicv2_get_ctrl(void)
+{
+	return readl_gicd(GICD_CTLR);
+}
+
+uint32_t gicv2_get_typer(void)
+{
+	return readl_gicd(GICD_TYPER);
+}
+
+uint32_t gicv2_get_iidr(void)
+{
+	return readl_gicd(GICD_IIDR);
 }
 
 static void gicv2_dist_init(void)
@@ -293,6 +483,8 @@ int gicv2_init(void)
 	gicv2_dist_init();
 
 	sl_unlock(&device->lock);
+
+    spi_map_init();
 
 	return 0;
 }

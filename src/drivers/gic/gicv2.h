@@ -39,9 +39,10 @@
 #define GICD_ICACTIVERN 	(0x3FC)
 #define GICD_IPRIORITYR 	(0x400)
 #define GICD_IPRIORITYRN 	(0x7F8)
-#define GICD_ITARGETSR  	(0x800)
+#define GICD_ITARGETSRR  	(0x800)
 #define GICD_ITARGETSR7 	(0x81C)
 #define GICD_ITARGETSR8 	(0x820)
+#define GICD_ITARGETSR      GICD_ITARGETSR8
 #define GICD_ITARGETSRN 	(0xBF8)
 #define GICD_ICFGR      	(0xC00)
 #define GICD_ICFGR1     	(0xC04)
@@ -123,6 +124,8 @@
 #define GICH_MISR_VGRP1E  	(1 << 6)
 #define GICH_MISR_VGRP1D  	(1 << 7)
 
+#define INVALID_INTRID      0xffffffff
+
 /*
  * The minimum GICC_BPR is required to be in the range 0-3. We set
  * GICC_BPR to 0 but we must expect that it might be 3. This means we
@@ -164,6 +167,29 @@ uint8_t readb_gicd(unsigned int offset);
 uint16_t readw_gicd(unsigned int offset);
 uint32_t readl_gicd(unsigned int offset);
 uint64_t readq_gicd(unsigned int offset);
+
+uint32_t gicv2_get_ctrl(void);
+uint32_t gicv2_get_typer(void);
+uint32_t gicv2_get_iidr(void);
+
+#define DECLARE_IRQ_DEAL_FUNC(name)    \
+    uint32_t gicv2_vdev_get_##name(uint32_t irq);   \
+    void gicv2_vdev_set_##name(uint32_t irq, uint32_t value)
+
+DECLARE_IRQ_DEAL_FUNC(IGROUPR);
+DECLARE_IRQ_DEAL_FUNC(ISENABLER);
+DECLARE_IRQ_DEAL_FUNC(ICENABLER);
+DECLARE_IRQ_DEAL_FUNC(ISPENDR);
+DECLARE_IRQ_DEAL_FUNC(ICPENDR);
+DECLARE_IRQ_DEAL_FUNC(ISACTIVER);
+DECLARE_IRQ_DEAL_FUNC(ICACTIVER);
+DECLARE_IRQ_DEAL_FUNC(IPRIORITYR);
+DECLARE_IRQ_DEAL_FUNC(ITARGETSR);
+DECLARE_IRQ_DEAL_FUNC(ITARGETSRR);
+DECLARE_IRQ_DEAL_FUNC(ICFGR);
+DECLARE_IRQ_DEAL_FUNC(NSACR);
+
+#undef DECLARE_IRQ_DEAL_FUNC
 
 struct gicv2_context {
     uint32_t hcr;

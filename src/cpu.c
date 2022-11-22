@@ -139,13 +139,12 @@ void cpu_module_init(const cpu_id_t *cpu_ids, size_t count)
 	 * CPU is initialized when it is found or in place of the last CPU if it
 	 * is not found.
 	 */
-	j = cpu_count;
+    j = 0;
 	for (i = 0; i < cpu_count; ++i) {
 		struct cpu *c;
 		cpu_id_t id = cpu_ids[i];
 
 		if (found_boot_cpu || id != boot_cpu_id) {
-			--j;
 			c = &cpus[j];
 			c->stack_bottom = &callstacks[j][STACK_SIZE];
 		} else {
@@ -153,6 +152,8 @@ void cpu_module_init(const cpu_id_t *cpu_ids, size_t count)
 			c = &cpus[0];
 			CHECK(c->stack_bottom == &callstacks[0][STACK_SIZE]);
 		}
+
+        j++;
 
 		sl_init(&c->lock);
 		c->id = id;

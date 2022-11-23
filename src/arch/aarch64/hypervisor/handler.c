@@ -570,8 +570,8 @@ static bool ffa_handler(struct ffa_value *args, struct vcpu *current,
 	 * api_ffa_features accordingly.
 	 */
 
-    dlog_info("[FFA_CALL] vmid: 0x%04x, phy_cpuid: 0x%04x, ffa func(0x%08x): %s\n",
-        current->vm->id, current->cpu->id, func, ffa_func_str(func));
+//    dlog_info("[FFA_CALL] vmid: 0x%04x, phy_cpuid: 0x%04x, ffa func(0x%08x): %s\n",
+//        current->vm->id, current->cpu->id, func, ffa_func_str(func));
 
 	switch (func) {
 	case FFA_VERSION_32:

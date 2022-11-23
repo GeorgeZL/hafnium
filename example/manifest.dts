@@ -12,5 +12,16 @@
 			smc_whitelist_permissive;
 			vcpu_count = <0x04>;
 		};
+
+		vm2 {
+			debug_name = "Guest VM1";
+			vcpu_count = <0x01>;
+            mem_size = <0x10000000>;
+			kernel_filename = "Image.2";
+			fdt_filename = "guest.dtb";
+            ramdisk_filename = "initrd.img";
+            fdt_address = <0x1024>;
+            initrd_address = <0x2048>;
+		};
 	};
 };

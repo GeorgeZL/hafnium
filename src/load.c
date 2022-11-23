@@ -389,13 +389,15 @@ static bool load_primary(struct mm_stage1_locked stage1_locked,
 
 	dlog_error("@@@@: 5\n");
 	mm_vm_dump(&vm_locked.vm->ptable);
+#if 0
 	if (gicv3_init()) {
 		panic("Unable to init gicv3 controller\n");
 	}
+#endif
 
 	dlog_error("@@@@: 6\n");
 	mm_vm_dump(&vm_locked.vm->ptable);
-	virtual_device_init(vm_locked.vm, ppool);
+	//virtual_device_init(vm_locked.vm, ppool);
 
 	dlog_error("@@@@: 7\n");
 	mm_vm_dump(&vm_locked.vm->ptable);
@@ -844,9 +846,9 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 					       mem_size);
 	}
 
-	gicv3_secondary_init();
+	//gicv3_secondary_init();
 
-	virtual_device_init(vm_locked.vm, ppool);
+	//virtual_device_init(vm_locked.vm, ppool);
 
 	dlog_warning("Secondary VM context info:\n");
 	vcpu_dump_sysarch(vcpu_locked.vcpu);

@@ -7,7 +7,7 @@ gic_args=
 uart_args=
 imgs_args=
 net_args=
-GIC2=0
+GIC2=1
 
 if [ $GIC2 -ne 1 ]; then
 	DTB=images/dtb/fvp-base-gicv3-psci-1t.dtb

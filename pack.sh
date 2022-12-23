@@ -36,11 +36,12 @@ function package_boot_image()
         do
             _name=${_f%%.dts}
             if [ "X$_name" != "X" ]; then
-                dtc -I dts -O dtb -o $DTBS/$_name.dtb $_f 2>/dev/null
+                dtc -q -I dts -O dtb -o $DTBS/$_name.dtb $_f
             fi
         done
     popd
-    cp $DTBS/*.dtb $HAF_INITRD
+    cp $DTBS/guest.dtb $HAF_INITRD
+    cp $DTBS/manifest.dtb $HAF_INITRD
 
     InfoMsg "create initrd for hafnium ..."
     pushd $HAF_INITRD
@@ -53,7 +54,7 @@ function remove_hafnium_imgs()
     rm $IMGS/initrd.img
 
     pushd $HAF_INITRD
-        #rm -fr *
+        rm -fr *
     popd
 
     pushd $ROOT/driver/linux
@@ -79,7 +80,7 @@ function update_rootfs()
     cp $LNX2/arch/arm64/boot/Image  $HAF_INITRD/Image.2
 
     pushd $ROOT/driver/linux
-        ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KERNEL_PATH=$LNX/ make
+        ARCH=arm64 CROSS_COMPILE=$CROSS_COMPILE KERNEL_PATH=$LNX/ make
         cp *.ko $IMGS/rootfs/root/.
     popd
 
@@ -87,7 +88,6 @@ function update_rootfs()
         find . | cpio -o -H newc | gzip > $HAF_INITRD/initrd.img
     popd
 }
-
 
 remove_hafnium_imgs
 update_rootfs

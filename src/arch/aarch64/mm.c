@@ -96,6 +96,19 @@
 #define STAGE2_MEMATTR(outer, inner) ((((outer) << 2) | (inner)) << 2)
 #define STAGE2_MEMATTR_TYPE_MASK UINT64_C(3 << 4)
 
+#define TT_ATTR_INDX_MASK                  (0x7 << 2)
+#define TT_ATTR_INDX_DEVICE_MEMORY         (0x0 << 2)
+#define TT_ATTR_INDX_MEMORY_NON_CACHEABLE  (0x1 << 2)
+#define TT_ATTR_INDX_MEMORY_WRITE_THROUGH  (0x2 << 2)
+#define TT_ATTR_INDX_MEMORY_WRITE_BACK     (0x3 << 2)
+
+#define MAIR_ATTR_DEVICE_MEMORY                0x0ULL
+#define MAIR_ATTR_NORMAL_MEMORY_NON_CACHEABLE  0x44ULL
+#define MAIR_ATTR_NORMAL_MEMORY_WRITE_THROUGH  0xBBULL
+#define MAIR_ATTR_NORMAL_MEMORY_WRITE_BACK     0xFFULL
+
+#define MAIR_ATTR(n, value)  ((value) << (((n) >> 2)*8))
+
 #define STAGE2_ACCESS_READ  UINT64_C(1)
 #define STAGE2_ACCESS_WRITE UINT64_C(2)
 
@@ -762,6 +775,20 @@ uint64_t arch_mm_combine_table_entry_attrs(uint64_t table_attrs,
 	return block_attrs;
 }
 
+void arch_mm_dump(struct arch_mm_config *config)
+{
+    if (config) {
+        dlog_info("arch mm config for el2:\n");
+        dlog_info("\tttbr0_el2: 0x%08x\n", config->ttbr0_el2);
+        dlog_info("\tmair_el2: 0x%08x\n", config->mair_el2);
+        dlog_info("\ttcr_el2: 0x%08x\n", config->tcr_el2);
+        dlog_info("\tsctlr_el2: 0x%08x\n", config->sctlr_el2);
+        dlog_info("\thcr_el2: 0x%08x\n", config->hcr_el2);
+        dlog_info("\tvtcr_el2: 0x%08x\n", config->vtcr_el2);
+        dlog_info("\tvstcr_el2: 0x%08x\n", config->vstcr_el2);
+    }
+}
+
 /**
  * This is called early in initialization without MMU or caches enabled.
  */
@@ -775,6 +802,9 @@ bool arch_mm_init(paddr_t table)
 	uint32_t sl0;
 
 	/* Check that 4KB granules are supported. */
+    dlog_info("id_aa64mmfr0_el1: 0x%016x, id_aa64pfr0_el1: 0x%016x\n",
+        features, pe_features);
+
 	if (((features >> 28) & 0xf) == 0xf) {
 		dlog_error("4KB granules are not supported\n");
 		return false;
@@ -879,14 +909,15 @@ bool arch_mm_init(paddr_t table)
 		 *         Write-Alloc, Read-Alloc.
 		 * 0xf0 -> Tagged Normal, Inner/Outer Write-Back,
 		 *         Read/Write-Alloc non-transient memory.
-		 */
-			.mair_el2 = (0 << (8 * STAGE1_DEVICEINDX)) |
+         */
+            .mair_el2 = (0 << (8 * STAGE1_DEVICEINDX)) |
 #if ENABLE_MTE
-				    (0xf0 << (8 * STAGE1_STACKINDX)) |
+                        (0xf0 << (8 * STAGE1_STACKINDX)) |
 #endif
-				    (0xff << (8 * STAGE1_NORMALINDX)),
+                        (0xff << (8 * STAGE1_NORMALINDX)),
 
 		.sctlr_el2 = get_sctlr_el2_value(),
+
 		.vstcr_el2 = (1U << 31) |	    /* RES1. */
 			     (0 << 30) |	    /* SA. */
 			     (0 << 29) |	    /* SW. */
@@ -938,7 +969,7 @@ bool arch_mm_init(paddr_t table)
 			0;
 	} else {
 		arch_mm_config.tcr_el2 =
-			(1 << 20) |		   /* TBI, top byte ignored. */
+            (1 << 20) |		    /* TBI, top byte ignored. */
 			((features & 0xf) << 16) | /* PS. */
 			(0 << 14) |		   /* TG0, granule size, 4KB. */
 			(3 << 12) |		   /* SH0, inner shareable. */
@@ -948,6 +979,9 @@ bool arch_mm_init(paddr_t table)
 			 << 0) | /* T0SZ, input address is  2^pa_bits bytes. */
 			0;
 	}
+
+    arch_mm_dump(&arch_mm_config);
+
 	return true;
 }
 

@@ -9,6 +9,8 @@
 #include "hf/layout.h"
 
 #include "hf/std.h"
+#include "hf/dlog.h"
+#include "crc.h"
 
 /**
  * Get the address the .text section begins at.
@@ -158,4 +160,65 @@ paddr_t layout_primary_begin(void)
 	 */
 	return pa_init(align_up(pa_addr(image_end), LINUX_ALIGNMENT) +
 		       LINUX_OFFSET);
+}
+
+paddr_t layout_bss_begin(void)
+{
+	extern uint8_t bss_begin[];
+
+	return pa_init((uintpaddr_t)bss_begin);
+}
+
+/**
+ * Get the address the .fdt section ends at.
+ */
+paddr_t layout_bss_end(void)
+{
+	extern uint8_t bss_end[];
+
+	return pa_init((uintpaddr_t)bss_end);
+}
+
+void layout_dump(void)
+{
+    paddr_t begin, end;
+    uint32_t crc;
+
+    dlog_info(">>>>>> layout dump: \n");
+    begin = layout_text_begin();
+    end   = layout_text_end();
+    crc = crcSlow((unsigned char *)begin.pa, end.pa - begin.pa);
+    dlog_info("Text layout: 0x%08x : 0x%08x (crc: 0x%08x)\n", begin.pa, end.pa, crc);
+
+    begin = layout_rodata_begin();
+    end   = layout_rodata_end();
+    crc = crcSlow((unsigned char *)begin.pa, end.pa - begin.pa);
+    dlog_info("Rodata layout: 0x%08x : 0x%08x (crc: 0x%08x)\n", begin.pa, end.pa, crc);
+
+    begin = layout_data_begin();
+    end   = layout_data_end();
+    crc = crcSlow((unsigned char *)begin.pa, end.pa - begin.pa);
+    dlog_info("data layout: 0x%08x : 0x%08x (crc: 0x%08x)\n", begin.pa, end.pa, crc);
+    
+    begin = layout_stacks_begin();
+    end   = layout_stacks_end();
+    crc = crcSlow((unsigned char *)begin.pa, end.pa - begin.pa);
+    dlog_info("stack layout: 0x%08x : 0x%08x (crc: 0x%08x)\n", begin.pa, end.pa, crc);
+
+    begin = layout_bss_begin();
+    end   = layout_bss_end();
+    crc = crcSlow((unsigned char *)begin.pa, end.pa - begin.pa);
+    dlog_info("bss layout: 0x%08x : 0x%08x(crc: 0x%08x)\n", begin.pa, end.pa, crc);
+    crc = crcSlow((unsigned char *)begin.pa, end.pa - begin.pa);
+    dlog_info("bss layout: 0x%08x : 0x%08x(crc: 0x%08x)\n", begin.pa, end.pa, crc);
+
+    begin = layout_initrd_begin();
+    end   = layout_initrd_end();
+    crc = crcSlow((unsigned char *)begin.pa, end.pa - begin.pa);
+    dlog_info("initrd layout: 0x%08x : 0x%08x (crc: 0x%08x)\n", begin.pa, end.pa, crc);
+
+    begin = layout_fdt_begin();
+    end   = layout_fdt_end();
+    dlog_info("fdt layout: 0x%08x : 0x%08x (crc: 0x%08x)\n", begin.pa, end.pa, crc);
+    dlog_info(">>>>>> layout dump end. \n");
 }

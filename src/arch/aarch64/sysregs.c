@@ -45,7 +45,7 @@ uintreg_t get_hcr_el2_value(ffa_vm_id_t vm_id, bool is_el0_partition)
 	hcr_el2_value |= HCR_EL2_RW;
 
 	/* Trap implementation registers and functionality. */
-	hcr_el2_value |= HCR_EL2_TACR | HCR_EL2_TIDCP;
+	//hcr_el2_value |= HCR_EL2_TACR | HCR_EL2_TIDCP;
 
 	/* Trap SMC instructions. */
 	hcr_el2_value |= HCR_EL2_TSC;

@@ -27,8 +27,8 @@ struct vdev {
     uint64_t hvm_paddr;
     
     struct list_entry   list;
-    int (*read)(struct vdev *, struct vcpu *, uint64_t, uint8_t size, uint64_t *);
-    int (*write)(struct vdev *, struct vcpu *, uint64_t, uint8_t size, uint64_t *);
+    int (*read)(struct vdev *, struct vcpu *, MMIOInfo_t *mmio, uint64_t, uint8_t size, uint32_t *);
+    int (*write)(struct vdev *, struct vcpu *, MMIOInfo_t *mmio, uint64_t, uint8_t size, uint32_t *);
     void (*deinit)(struct vdev *);
     void (*reset)(struct vdev *);
     int (*suspend)(struct vdev *);
@@ -40,4 +40,4 @@ void vdev_deinit(struct vdev *vdev);
 void virtual_device_init(struct vm *vm, struct mpool *ppool);
 int vdev_init(struct vdev *vdev, uint64_t base, uint32_t size);
 bool register_one_vdev(struct vm *vm, struct vdev *vdev, struct mpool *);
-int vdev_mmio_emulation(struct vcpu *vcpu, int write, uint8_t size, uint64_t addr, uint64_t *value);
+int vdev_mmio_emulation(struct vcpu *vcpu, MMIOInfo_t *mmio, int write, uint8_t size, uint64_t addr, uint32_t *value);

@@ -142,10 +142,12 @@ SECTIONS
 	.dynamic : {
 		*(.dynamic.*)
 	}
+
 	/* Everything beyond this point will not be included in the binary. */
 	bin_end = .;
 	/* The entry point code assumes that .bss is 16-byte aligned. */
-	. = ALIGN(16);
+
+	. = ALIGN(4096);
 	bss_begin = .;
 	.bss : {
 		*(.bss*)
@@ -153,6 +155,7 @@ SECTIONS
 	}
 	. = ALIGN(16);
 	bss_end = .;
+
 	data_size = ABSOLUTE(. - data_begin);
 	. = ALIGN(4096);
 	data_end = .;

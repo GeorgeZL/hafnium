@@ -120,21 +120,27 @@ void one_time_init(void)
 	size_t i;
 	struct mm_stage1_locked mm_stage1_locked;
 
+
+    dlog_info("%s\n", __func__);
+
 	arch_one_time_init();
 
 	/* Enable locks now that mm is initialised. */
 	dlog_enable_lock();
 	mpool_enable_locks();
 
+    dlog_info("mm lock \n");
 	mm_stage1_locked = mm_lock_stage1();
 
-	//mm_vm_dump(mm_stage1_locked.ptable);
+	mm_vm_dump(mm_stage1_locked.ptable);
 
+    dlog_info("fdt map\n");
 	if (!fdt_map(&fdt, mm_stage1_locked, plat_boot_flow_get_fdt_addr(),
 		     &ppool)) {
 		panic("Unable to map FDT.");
 	}
 
+    dlog_info("get boot params\n");
 	if (!boot_flow_get_params(&params, &fdt)) {
 		panic("Could not parse boot params.");
 	}
@@ -184,11 +190,11 @@ void one_time_init(void)
 		      manifest_strerror(manifest_ret));
 	}
 
+#if 0
 	if (!plat_iommu_init(&fdt, mm_stage1_locked, &ppool)) {
 		panic("Could not initialize IOMMUs.");
 	}
 
-#if 0
 	if (!fdt_unmap(&fdt, mm_stage1_locked, &ppool)) {
 		panic("Unable to unmap FDT.");
 	}
@@ -227,6 +233,8 @@ void one_time_init(void)
 
 	/* Perform platform specfic FF-A initialization. */
 	plat_ffa_init(manifest.ffa_tee_enabled);
+
+    dlog_info("%s done\n", __func__);
 
 	dlog_info("Hafnium initialisation completed\n");
 }

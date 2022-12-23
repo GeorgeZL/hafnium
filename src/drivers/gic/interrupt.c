@@ -18,7 +18,8 @@ void spi_map_init(void)
 {
     sl_init(&spi_lock);
     for (int i = 16; i < MAX_SPI_NUM; i++) {
-        spi_maps[i] = HF_INVALID_VM_ID;
+        //spi_maps[i] = HF_INVALID_VM_ID;
+        spi_maps[i] = HF_PRIMARY_VM_ID;
     }
     
     for (int i = 0; i < 16; i++) {

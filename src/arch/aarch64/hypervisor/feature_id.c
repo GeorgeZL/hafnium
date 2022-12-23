@@ -73,7 +73,9 @@
 	X(ICC_AP0R0_EL1		, 3, 0, 12, 8, 4)   \
 	X(ICC_EOIR1_EL1		, 3, 0, 12, 12, 1)  \
 	X(ICC_AP1R0_EL1		, 3, 0, 12, 9, 0)  \
-	X(ICC_IGRPEN1_EL1	, 3, 0, 12, 12, 7)
+	X(ICC_IGRPEN1_EL1	, 3, 0, 12, 12, 7)  \
+	X(s3_0_c15_c1_2     , 3, 0, 15, 1, 2)   \
+	X(s3_0_c15_c1_3     , 3, 0, 15, 1, 3) 
 
 
 /* clang-format on */
@@ -97,7 +99,7 @@ bool feature_id_is_register_access(uintreg_t esr)
 	uintreg_t crm = GET_ISS_CRM(esr);
 
 	/* From the Arm Architecture Reference Manual Table D12-2. */
-	return op0 == 3 && op1 == 0 && crn == 0 && crm >= 1 && crm <= 7;
+	return op0 == 3 && op1 == 0 && (crn == 0 || crn == 15) && crm >= 1 && crm <= 7;
 }
 
 bool feature_id_is_icc_access(uintreg_t esr)
@@ -107,7 +109,7 @@ bool feature_id_is_icc_access(uintreg_t esr)
 	uintreg_t crn = GET_ISS_CRN(esr);
 	uintreg_t crm = GET_ISS_CRM(esr);
 
-	return op0 == 3 && op1 == 0 && ((crn == 4 && crm == 6) || (crn == 12));
+	return op0 == 3 && op1 == 0 && ((crn == 4 && crm == 6) || (crn == 12) || (crn == 15 && crm == 1));
 }
 
 /**

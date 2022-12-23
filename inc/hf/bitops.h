@@ -11,6 +11,9 @@
 #define BIT_ULL_WORD(nr)	((nr) / BITS_PER_LONG_LONG)
 #define BITS_TO_LONGS(nr)	DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(uint32_t))
 
+#define BITMAP_SIZE(size)           (BITS_TO_LONGS((size)) * sizeof(uint32_t))
+#define DECLARE_BITMAP(name, bits)  uint32_t name[BITS_TO_LONGS(bits)]
+
 /*
  * Create a contiguous bitmask starting at bit position @l and ending at
  * position @h. For example
@@ -22,12 +25,27 @@
 #define GENMASK_ULL(h, l) \
 	(((~0ULL) << (l)) & (~0ULL >> (BITS_PER_LONG_LONG - 1 - (h))))
 
+void *memset(void *s, int c, size_t n);
+
+static inline void bitmap_zero(uint32_t *bitmap, uint32_t nr)
+{
+    uint32_t len = BITS_TO_LONGS(nr);
+
+    memset(bitmap, 0, len * sizeof(uint32_t));
+}
+
+static inline void bitmap_fill(uint32_t *bitmap, uint32_t nr)
+{
+    uint32_t len = BITS_TO_LONGS(nr);
+
+    memset(bitmap, 0xff, len * sizeof(uint32_t));
+}
+
 /*
  * ffs: find first bit set. This is defined the same way as
  * the libc and compiler builtin ffs routines, therefore
  * differs in spirit from the above ffz (man ffs).
  */
-
 static inline uint32_t generic_ffs(uint32_t x)
 {
 	uint32_t r = 1;

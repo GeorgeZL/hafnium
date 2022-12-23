@@ -66,7 +66,7 @@ static void unlock(void)
  */
 void dlog_enable_lock(void)
 {
-	dlog_lock_enabled = true;
+	dlog_lock_enabled = false;
 }
 
 static void dlog_putchar(char c)
@@ -361,4 +361,8 @@ void dlog(const char *fmt, ...)
 	va_start(args, fmt);
 	vdlog(fmt, args);
 	va_end(args);
+}
+
+void test_put_C(char c)
+{
 }

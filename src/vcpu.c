@@ -144,7 +144,7 @@ static void set_reg_value(
 static bool vcpu_handle_vdev_emulation(struct vcpu *current, struct vcpu_fault_info *f)
 {
 	int write = (f->mode & MM_MODE_W) ? 1 : 0;
-	uint64_t value = 0;
+	uint32_t value = 0;
 	int retval = -EINVAL;
 
 	if (f->isv == DAT_ISS_ISV_VAL) {
@@ -153,10 +153,10 @@ static bool vcpu_handle_vdev_emulation(struct vcpu *current, struct vcpu_fault_i
         if (f->wnr == DAT_ISS_WNR_WR) {
             value = (f->srt > 30) ? 0x0 : current->regs.r[f->srt];
             retval = vdev_mmio_emulation(
-                    current, write, (1 << (0xff & f->sas)), f->ipaddr.ipa, &value);
+                    current, f, write, (1 << (0xff & f->sas)), f->ipaddr.ipa, &value);
         } else {
             retval = vdev_mmio_emulation(
-                    current, write, (1 << (0xff & f->sas)), f->ipaddr.ipa, &value);
+                    current, f, write, (1 << (0xff & f->sas)), f->ipaddr.ipa, &value);
             if (retval == 0) {
                 set_reg_value(current, f, value);
             }

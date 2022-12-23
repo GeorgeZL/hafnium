@@ -94,6 +94,8 @@ struct vcpu_fault_info {
 	uint32_t srt:5;
 };
 
+typedef struct vcpu_fault_info MMIOInfo_t;
+
 struct vcpu {
 	struct spinlock lock;
 

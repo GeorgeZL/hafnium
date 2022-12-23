@@ -101,6 +101,7 @@ source_set("vm") {
 source_set("std") {
   sources = [
     "std.c",
+    "crc.c"
   ]
 
   deps = [

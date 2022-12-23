@@ -449,24 +449,28 @@ static inline void writeb_relaxed(uint8_t v, uintpaddr_t c)
 {
     iowmb();
     (void)__raw_writeb(v, (void*)c);
+    data_sync_barrier();
 }
 
 static inline void writew_relaxed(uint16_t v, uintpaddr_t c)
 {
     iowmb();
     (void)__raw_writew(v, (void *)c);
+    data_sync_barrier();
 }
 
 static inline void writel_relaxed(uint32_t v, uintpaddr_t c)
 {
     iowmb();
     (void)__raw_writel(v, (void *)c);
+    data_sync_barrier();
 }
 
 static inline void writeq_relaxed(uint64_t v, uintpaddr_t c)
 {
-        iowmb(); 
-        (void)__raw_writeq(v, (void *)c);
+    iowmb(); 
+    (void)__raw_writeq(v, (void *)c);
+    data_sync_barrier();
 }
  
 #if 0

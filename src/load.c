@@ -32,6 +32,7 @@
 #include "hf/device/gic.h"
 #include "hf/device/vdev.h"
 #include "hf/interrupt.h"
+#include "hf/dlog.h"
 
 #include "vmapi/hf/call.h"
 #include "vmapi/hf/ffa.h"
@@ -375,6 +376,8 @@ static bool load_primary(struct mm_stage1_locked stage1_locked,
 		ret = false;
 		goto out;
 	}
+
+    mm_vm_dump(stage1_locked.ptable);
 
 	virtual_device_init(vm_locked.vm, ppool);
 
@@ -825,7 +828,7 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 
 	gic_secondary_init();
 
-	//virtual_device_init(vm_locked.vm, ppool);
+	virtual_device_init(vm_locked.vm, ppool);
 
 	dlog_warning("Secondary VM context info:\n");
 	vcpu_dump_sysarch(vcpu_locked.vcpu);
@@ -869,6 +872,7 @@ static bool carve_out_mem_range(struct mem_range *mem_ranges,
 			return true;
 		}
 	}
+
 	return false;
 }
 

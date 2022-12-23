@@ -1,20 +1,3 @@
-/*
- * ARM Generic Interrupt Controller support
- *
- * Tim Deegan <tim@xen.org>
- * Copyright (c) 2011 Citrix Systems.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-
 #pragma once
 
 #define NR_GIC_LOCAL_IRQS  NR_LOCAL_IRQS
@@ -39,10 +22,10 @@
 #define GICD_ICACTIVERN 	(0x3FC)
 #define GICD_IPRIORITYR 	(0x400)
 #define GICD_IPRIORITYRN 	(0x7F8)
-#define GICD_ITARGETSRR  	(0x800)
+#define GICD_ITARGETSR  	(0x800)
 #define GICD_ITARGETSR7 	(0x81C)
 #define GICD_ITARGETSR8 	(0x820)
-#define GICD_ITARGETSR      GICD_ITARGETSR8
+//#define GICD_ITARGETSR      GICD_ITARGETSR8
 #define GICD_ITARGETSRN 	(0xBF8)
 #define GICD_ICFGR      	(0xC00)
 #define GICD_ICFGR1     	(0xC04)
@@ -148,13 +131,53 @@
 #define GIC_PRI_HIGHEST    	0x80 /* Higher priorities belong to Secure-World */
 #define GIC_PRI_TO_GUEST(pri) 	(pri >> 3) /* GICH_LR and GICH_VMCR only support
                                             5 bits for guest irq priority */
-void gicv2_clear_pending(uint32_t irq);
-int gicv2_set_irq_priority(uint32_t irq, uint32_t pr);
+#define IRQ_FLAGS_NONE           		(0x00000000)
+#define IRQ_FLAGS_EDGE_RISING    		(0x00000001)
+#define IRQ_FLAGS_EDGE_FALLING  		(0x00000002)
+#define IRQ_FLAGS_LEVEL_HIGH     		(0x00000004)
+#define IRQ_FLAGS_LEVEL_LOW      		(0x00000008)
+#define IRQ_FLAGS_SENSE_MASK     		(0x0000000f)
+#define IRQ_FLAGS_INVALID        		(0x00000010)
+#define IRQ_FLAGS_EDGE_BOTH \
+    (IRQ_FLAGS_EDGE_FALLING | IRQ_FLAGS_EDGE_RISING)
+#define IRQ_FLAGS_LEVEL_BOTH \
+    (IRQ_FLAGS_LEVEL_LOW | IRQ_FLAGS_LEVEL_HIGH)
+#define IRQ_FLAGS_TYPE_MASK			(0x000000ff)
+
+void dump_registers(void);
+
 int gicv2_set_irq_affinity(uint32_t irq, uint32_t pcpu);
-void gicv2_mask_irq(uint32_t irq);
-void gicv2_unmask_irq(uint32_t irq);
 void gicv2_mask_irq_cpu(uint32_t irq, int cpu);
 void gicv2_unmask_irq_cpu(uint32_t irq, int cpu);
+
+uint32_t gicv2_get_irq_group(uint32_t irq);
+void gicv2_set_irq_group(uint32_t irq, uint32_t group);
+uint32_t gicv2_irq_is_deactive(uint32_t irq);
+void gicv2_deactive_irq(uint32_t irq);
+void gicv2_set_irq_type(uint32_t irq, uint32_t type);
+uint32_t gicv2_get_irq_type(uint32_t irq);
+void gicv2_clear_irq_pending(uint32_t irq);
+uint32_t gicv2_get_clear_pending_state(uint32_t irq);
+uint32_t gicv2_get_irq_pending_state(uint32_t irq);
+void gicv2_set_irq_pending(uint32_t irq);
+uint8_t gicv2_get_irq_priority(uint32_t irq);
+void gicv2_set_irq_priority(uint32_t irq, uint32_t priority);
+void gicv2_sgi_set_conf(uint32_t conf);
+void gicv2_sgi_clear(uint32_t sgi, uint8_t mask);
+uint8_t gicv2_sgi_pending_state(uint32_t sgi);
+void gicv2_sgi_active(uint32_t sgi, uint8_t mask);
+uint8_t gicv2_sgi_get_active_state(uint32_t sgi);
+void gicv2_mask_irq(uint32_t irq);
+uint32_t gicv2_get_mask_irq(uint32_t irq);
+void gicv2_unmask_irq(uint32_t irq);
+uint32_t gicv2_get_irq_state(uint32_t irq);
+uint32_t gicv2_irq_is_active(uint32_t irq);
+void gicv2_active_irq(uint32_t irq);
+void gicv2_deactive_irq(uint32_t irq);
+uint8_t gicv2_get_irq_affinity(uint32_t irq);
+uint32_t gicv2_get_unmask_irq(uint32_t irq);
+
+
 int gicv2_init(void);
 int gicv2_secondary_init(void);
 
@@ -173,8 +196,8 @@ uint32_t gicv2_get_typer(void);
 uint32_t gicv2_get_iidr(void);
 
 #define DECLARE_IRQ_DEAL_FUNC(name)    \
-    uint32_t gicv2_vdev_get_##name(uint32_t irq);   \
-    void gicv2_vdev_set_##name(uint32_t irq, uint32_t value)
+    uint32_t gicv2_vdev_get_##name(uint32_t irq, uint32_t offset, uint32_t size);   \
+    void gicv2_vdev_set_##name(uint32_t irq, uint32_t value, uint32_t offset, uint32_t size)
 
 DECLARE_IRQ_DEAL_FUNC(IGROUPR);
 DECLARE_IRQ_DEAL_FUNC(ISENABLER);
@@ -185,9 +208,11 @@ DECLARE_IRQ_DEAL_FUNC(ISACTIVER);
 DECLARE_IRQ_DEAL_FUNC(ICACTIVER);
 DECLARE_IRQ_DEAL_FUNC(IPRIORITYR);
 DECLARE_IRQ_DEAL_FUNC(ITARGETSR);
-DECLARE_IRQ_DEAL_FUNC(ITARGETSRR);
 DECLARE_IRQ_DEAL_FUNC(ICFGR);
 DECLARE_IRQ_DEAL_FUNC(NSACR);
+
+uint32_t gicv2_get_direct(uint32_t reg, uint32_t size);
+void gicv2_set_direct(uint32_t reg, uint32_t value, uint32_t size);
 
 #undef DECLARE_IRQ_DEAL_FUNC
 

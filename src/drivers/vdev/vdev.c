@@ -60,11 +60,15 @@ bool register_one_vdev(struct vm *vm, struct vdev *vdev, struct mpool *ppool)
 
 	mm_vm_dump(&vm->ptable);
 
+#if 1
     success = mm_vm_unmap(&vm->ptable, (paddr_t){vdev->gvm_paddr},
         (paddr_t){vdev->gvm_paddr + vdev->mem_size}, ppool);
     if (!success) {
         dlog_error("vdev - '%s': failed to register to VM\n", vdev->name);
     }
+#else
+    success = true;
+#endif
 
 	mm_vm_dump(&vm->ptable);
 
@@ -72,7 +76,7 @@ bool register_one_vdev(struct vm *vm, struct vdev *vdev, struct mpool *ppool)
 }
 
 int vdev_mmio_emulation(
-    struct vcpu *vcpu, int write, uint8_t size, uint64_t addr, uint64_t *value)
+    struct vcpu *vcpu, MMIOInfo_t *mmio, int write, uint8_t size, uint64_t addr, uint32_t *value)
 {
     struct vm *vm = current_vm();
     struct vdev *vdev;
@@ -82,9 +86,9 @@ int vdev_mmio_emulation(
         if ((addr >= vdev->gvm_paddr) &&  \
             (addr < vdev->gvm_paddr + vdev->mem_size)) {
             if (write) {
-                return vdev->write(vdev, vcpu, addr, size, value);
+                return vdev->write(vdev, vcpu, mmio, addr, size, value);
             } else {
-                return vdev->read(vdev, vcpu, addr, size, value);
+                return vdev->read(vdev, vcpu, mmio, addr, size, value);
             }
         }
     }

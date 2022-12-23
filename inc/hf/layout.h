@@ -34,3 +34,4 @@ paddr_t layout_fdt_end(void);
 paddr_t layout_image_end(void);
 
 paddr_t layout_primary_begin(void);
+void layout_dump(void);

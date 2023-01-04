@@ -11,7 +11,7 @@ config("compiler_defaults") {
   cflags = [
     "-g",
     "-Wall",
-    "-O2",
+    "-O0",
 
     #"-Wextra",
     "-Wpedantic",
@@ -19,6 +19,8 @@ config("compiler_defaults") {
 
     "-fstack-protector-all",
   ]
+
+  asmflags = [ "-g"  ]
 
   cflags_c = [ "-std=c11" ]
 

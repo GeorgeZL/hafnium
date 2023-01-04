@@ -1,0 +1,16 @@
+/dts-v1/;
+
+/ {
+
+	hypervisor {
+		compatible = "hafnium,hafnium";
+
+		vm1 {
+			debug_name = "Host VM";
+			kernel_filename = "Image";
+			ramdisk_filename = "initrd.img";
+			smc_whitelist_permissive;
+			vcpu_count = <0x05>;
+		};
+	};
+};

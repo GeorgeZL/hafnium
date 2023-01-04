@@ -14,6 +14,7 @@ void arch_vm_features_set(struct vm *vm)
 {
 	/* Features to trap for all VMs. */
 
+#if 0
 	/*
 	 * It is not safe to enable this yet, in part, because the feature's
 	 * registers are not context switched in Hafnium.
@@ -49,4 +50,5 @@ void arch_vm_features_set(struct vm *vm)
 		 */
 		vm->arch.trapped_features |= HF_FEATURE_PAUTH;
 	}
+#endif
 }

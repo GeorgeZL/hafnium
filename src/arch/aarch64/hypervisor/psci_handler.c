@@ -387,3 +387,22 @@ bool psci_handler(struct vcpu *vcpu, uint32_t func, uintreg_t arg0,
 	return psci_secondary_vm_handler(vcpu, func, arg0, arg1, arg2, ret,
 					 next);
 }
+
+void cpu_power_on(struct cpu *cpu, uintreg_t *ret)
+{
+    struct ffa_value smc_res;
+
+    sl_lock(&cpu->lock);
+    cpu->is_on = true;
+    sl_unlock(&cpu->lock);
+
+    do {
+        smc_res = smc64(PSCI_CPU_ON, cpu->id,
+                (uintreg_t)&cpu_entry, (uintreg_t)cpu, 0, 0, 0, SMCCC_CALLER_HYPERVISOR);
+        *ret = smc_res.func;
+    } while (*ret == PSCI_ERROR_ALREADY_ON);
+
+    if (*ret != PSCI_RETURN_SUCCESS) {
+        cpu_off(cpu);
+    }
+}

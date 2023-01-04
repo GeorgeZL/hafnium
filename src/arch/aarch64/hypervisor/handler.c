@@ -8,6 +8,7 @@
 
 #include <stdnoreturn.h>
 
+#include "hf/arch/arch.h"
 #include "hf/arch/barriers.h"
 #include "hf/arch/init.h"
 #include "hf/arch/mmu.h"
@@ -23,6 +24,8 @@
 #include "hf/panic.h"
 #include "hf/plat/interrupts.h"
 #include "hf/vm.h"
+#include "hf/std.h"
+#include "hf/device/vdev.h"
 
 #include "vmapi/hf/call.h"
 
@@ -35,6 +38,7 @@
 #include "smc.h"
 #include "sysregs.h"
 
+char *strcpy(char *des, const char *src);
 /**
  * Hypervisor Fault Address Register Non-Secure.
  */
@@ -68,10 +72,16 @@
 /**
  * Returns a reference to the currently executing vCPU.
  */
-static struct vcpu *current(void)
+struct vcpu *current(void)
 {
 	// NOLINTNEXTLINE(performance-no-int-to-ptr)
 	return (struct vcpu *)read_msr(tpidr_el2);
+}
+
+struct vm *current_vm(void)
+{
+	struct vcpu *vcpu = current();
+	return (struct vm*)vcpu->vm;
 }
 
 /**
@@ -429,7 +439,7 @@ static void smc_forwarder(const struct vm *vm, struct ffa_value *args)
 	uint32_t client_id = vm->id;
 	uintreg_t arg7 = args->arg7;
 
-	if (smc_is_blocked(vm, args->func)) {
+	if (!smc_is_blocked(vm, args->func)) {
 		args->func = SMCCC_ERROR_UNKNOWN;
 		return;
 	}
@@ -466,6 +476,90 @@ static void smc_forwarder(const struct vm *vm, struct ffa_value *args)
  * and has to be forwarded down to EL3, or left as is to resume the current
  * vCPU.
  */
+
+#define FFA_FUNC_STR_CLEAR(name)    \
+{ \
+	index = (name) - 0x84000060; \
+	if (index < 100 && index >= 0) { \
+		str_ptr = g_ffa_func_str[index]; \
+		if (strnlen_s(str_ptr, 40) == 0) \
+			strcpy(str_ptr, #name); \
+	} \
+}
+
+static char g_ffa_func_str[100][40];
+static char g_ffa_none[] = "FFA_FUNC_NONE";
+
+static void ffa_str_init(void)
+{
+	int index = -1;
+	char *str_ptr = NULL;
+
+	FFA_FUNC_STR_CLEAR(FFA_ERROR_32);
+	FFA_FUNC_STR_CLEAR(FFA_SUCCESS_32);
+	FFA_FUNC_STR_CLEAR(FFA_SUCCESS_32);
+	FFA_FUNC_STR_CLEAR(FFA_INTERRUPT_32);
+	FFA_FUNC_STR_CLEAR(FFA_VERSION_32);
+	FFA_FUNC_STR_CLEAR(FFA_FEATURES_32);
+	FFA_FUNC_STR_CLEAR(FFA_RX_RELEASE_32);
+	FFA_FUNC_STR_CLEAR(FFA_RXTX_MAP_32);
+	FFA_FUNC_STR_CLEAR(FFA_RXTX_MAP_64);
+	FFA_FUNC_STR_CLEAR(FFA_RXTX_UNMAP_32);
+	FFA_FUNC_STR_CLEAR(FFA_PARTITION_INFO_GET_32);
+	FFA_FUNC_STR_CLEAR(FFA_ID_GET_32);
+	FFA_FUNC_STR_CLEAR(FFA_MSG_POLL_32);
+	FFA_FUNC_STR_CLEAR(FFA_MSG_WAIT_32);
+	FFA_FUNC_STR_CLEAR(FFA_YIELD_32);
+	FFA_FUNC_STR_CLEAR(FFA_RUN_32);
+	FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_32);
+	FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_DIRECT_REQ_32);
+	FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_DIRECT_REQ_64);
+	FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_DIRECT_RESP_32);
+	FFA_FUNC_STR_CLEAR(FFA_MSG_SEND_DIRECT_RESP_64);
+	FFA_FUNC_STR_CLEAR(FFA_MEM_DONATE_32);
+	FFA_FUNC_STR_CLEAR(FFA_MEM_LEND_32);
+	FFA_FUNC_STR_CLEAR(FFA_MEM_SHARE_32);
+	FFA_FUNC_STR_CLEAR(FFA_MEM_RETRIEVE_REQ_32);
+	FFA_FUNC_STR_CLEAR(FFA_MEM_RETRIEVE_RESP_32);
+	FFA_FUNC_STR_CLEAR(FFA_MEM_RELINQUISH_32);
+	FFA_FUNC_STR_CLEAR(FFA_MEM_RECLAIM_32);
+	FFA_FUNC_STR_CLEAR(FFA_MEM_FRAG_RX_32);
+	FFA_FUNC_STR_CLEAR(FFA_MEM_FRAG_TX_32);
+	FFA_FUNC_STR_CLEAR(FFA_NORMAL_WORLD_RESUME);
+	FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_BITMAP_CREATE_32);
+	FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_BITMAP_DESTROY_32);
+	FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_BIND_32);
+	FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_UNBIND_32);
+	FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_SET_32);
+	FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_GET_32);
+	FFA_FUNC_STR_CLEAR(FFA_NOTIFICATION_INFO_GET_64);
+	FFA_FUNC_STR_CLEAR(FFA_RX_ACQUIRE_32);
+	FFA_FUNC_STR_CLEAR(FFA_SPM_ID_GET_32);
+	FFA_FUNC_STR_CLEAR(FFA_MSG_SEND2_32);
+	FFA_FUNC_STR_CLEAR(FFA_SECONDARY_EP_REGISTER_64);
+	FFA_FUNC_STR_CLEAR(FFA_MEM_PERM_GET_32);
+	FFA_FUNC_STR_CLEAR(FFA_MEM_PERM_SET_32);
+	FFA_FUNC_STR_CLEAR(FFA_MEM_PERM_GET_64);
+	FFA_FUNC_STR_CLEAR(FFA_MEM_PERM_SET_64);
+}
+
+char *ffa_func_str(int func)
+{
+	static uint32_t flag = 0;
+	int index = func - 0x84000060;
+
+	if (!flag) {
+		flag = 1;
+		ffa_str_init();
+	}
+
+	if (index < 100 && index >= 0) {
+		return g_ffa_func_str[index];
+	}
+
+	return g_ffa_none;
+}
+
 static bool ffa_handler(struct ffa_value *args, struct vcpu *current,
 			struct vcpu **next)
 {
@@ -475,6 +569,10 @@ static bool ffa_handler(struct ffa_value *args, struct vcpu *current,
 	 * NOTE: When adding new methods to this handler update
 	 * api_ffa_features accordingly.
 	 */
+
+//    dlog_info("[FFA_CALL] vmid: 0x%04x, phy_cpuid: 0x%04x, ffa func(0x%08x): %s\n",
+//        current->vm->id, current->cpu->id, func, ffa_func_str(func));
+
 	switch (func) {
 	case FFA_VERSION_32:
 		*args = api_ffa_version(current, args->arg1);
@@ -1072,6 +1170,7 @@ static struct vcpu_fault_info fault_info_init(uintreg_t esr,
 	struct vcpu_fault_info r;
 	uint64_t hpfar_el2_val;
 	uint64_t hpfar_el2_fipa;
+	uint64_t iss = ESR_ISS(esr);
 
 	r.mode = mode;
 	r.pc = va_init(vcpu->regs.pc);
@@ -1081,6 +1180,13 @@ static struct vcpu_fault_info fault_info_init(uintreg_t esr,
 
 	/* Extract Faulting IPA. */
 	hpfar_el2_fipa = (hpfar_el2_val & HPFAR_EL2_FIPA) << 8;
+
+	r.isv = ISS_ISV(iss);
+	r.sas = ISS_SAS(iss);
+	r.sse = ISS_SSE(iss);
+	r.sf  = ISS_SF(iss);
+	r.wnr = ISS_WNR(iss);
+	r.srt = ISS_SRT(iss);
 
 #if SECURE_WORLD == 1
 
@@ -1240,6 +1346,7 @@ struct vcpu *sync_lower_exception(uintreg_t esr, uintreg_t far)
 	 * The exception wasn't handled. Inject to the VM to give it chance to
 	 * handle as an unknown exception.
 	 */
+	dlog_notice("%s:%d\n", __func__, __LINE__);
 	inject_el1_unknown_exception(vcpu, esr);
 
 	/* Schedule the same VM to continue running. */
@@ -1273,6 +1380,11 @@ void handle_system_register_access(uintreg_t esr_el2)
 		}
 	} else if (feature_id_is_register_access(esr_el2)) {
 		if (!feature_id_process_access(vcpu, esr_el2)) {
+			inject_el1_unknown_exception(vcpu, esr_el2);
+			return;
+		}
+	} else if (feature_id_is_icc_access(esr_el2)) {
+		if (!feature_id_icc_access(vcpu, esr_el2)) {
 			inject_el1_unknown_exception(vcpu, esr_el2);
 			return;
 		}

@@ -67,3 +67,9 @@ void arch_cpu_init(struct cpu *c, ipaddr_t entry_point)
 
 	plat_interrupts_controller_hw_init(c);
 }
+
+void cpu_power_on(struct cpu *cpu, uintreg_t *ret)
+{
+    (void)cpu;
+    (void)ret;
+}

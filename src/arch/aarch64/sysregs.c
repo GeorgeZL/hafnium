@@ -45,7 +45,7 @@ uintreg_t get_hcr_el2_value(ffa_vm_id_t vm_id, bool is_el0_partition)
 	hcr_el2_value |= HCR_EL2_RW;
 
 	/* Trap implementation registers and functionality. */
-	hcr_el2_value |= HCR_EL2_TACR | HCR_EL2_TIDCP;
+	//hcr_el2_value |= HCR_EL2_TACR | HCR_EL2_TIDCP;
 
 	/* Trap SMC instructions. */
 	hcr_el2_value |= HCR_EL2_TSC;
@@ -85,7 +85,7 @@ uintreg_t get_hcr_el2_value(ffa_vm_id_t vm_id, bool is_el0_partition)
 		 * Broadcast instructions related to invalidating the TLB within
 		 * the Inner Shareable domain.
 		 */
-		hcr_el2_value |= HCR_EL2_FB;
+		//hcr_el2_value |= HCR_EL2_FB;
 
 		if (!has_ras_support()) {
 			/*
@@ -95,7 +95,7 @@ uintreg_t get_hcr_el2_value(ffa_vm_id_t vm_id, bool is_el0_partition)
 			 * overhead. RAS is mandatory from Armv8.2, so this
 			 * should not be common.
 			 */
-			hcr_el2_value |= HCR_EL2_AMO;
+			//hcr_el2_value |= HCR_EL2_AMO;
 		}
 
 		/*
@@ -105,12 +105,11 @@ uintreg_t get_hcr_el2_value(ffa_vm_id_t vm_id, bool is_el0_partition)
 		 * Barrier instructions (esb) on hypervisor entry/exit, or
 		 * implicit barriers (SCTLR_EL2_IESB is set).
 		 */
-		hcr_el2_value |= HCR_EL2_IMO | HCR_EL2_FMO;
+		//hcr_el2_value |= HCR_EL2_IMO | HCR_EL2_FMO;
 
 #if SECURE_WORLD == 0
 		/* Trap wait for event/interrupt instructions. */
 		hcr_el2_value |= HCR_EL2_TWE | HCR_EL2_TWI;
-
 #endif
 	}
 
@@ -173,7 +172,11 @@ uintreg_t get_sctlr_el2_value(void)
 
 	/* MMU-related bits. */
 	sctlr_el2_value |= SCTLR_EL2_M;
-	sctlr_el2_value |= SCTLR_EL2_A;
+
+    /*
+     * disable 'Aligin Check' to avoid failed during memory access
+     */
+	/* sctlr_el2_value |= SCTLR_EL2_A; */
 	sctlr_el2_value |= SCTLR_EL2_C;
 	sctlr_el2_value |= SCTLR_EL2_SA;
 	sctlr_el2_value |= SCTLR_EL2_I;

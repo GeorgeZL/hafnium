@@ -49,6 +49,26 @@ bool plat_ffa_is_direct_request_valid(struct vcpu *current,
 	return true;
 }
 
+int vgicv3_init(struct vm *vm, struct mpool *ppool)
+{
+	(void)vm;
+	(void)ppool;
+
+	return 0;
+}
+
+
+int vdev_mmio_emulation(
+    struct vcpu *vcpu, int write, uint64_t addr, uint64_t *value)
+{
+	(void)vcpu;
+	(void)write;
+	(void)addr;
+	(void)value;
+
+	return 0;
+}
+
 bool plat_ffa_is_direct_request_supported(struct vm *sender_vm,
 					  struct vm *receiver_vm)
 {

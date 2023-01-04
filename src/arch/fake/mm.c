@@ -199,3 +199,9 @@ uint32_t arch_mm_get_pa_range(void)
 {
 	return 40;
 }
+
+void gic_mm_init(struct mm_stage1_locked stage1_locked, struct mpool *ppool)
+{
+    (void)stage1_locked;
+    (void)ppool;
+}

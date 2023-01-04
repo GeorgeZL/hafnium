@@ -24,6 +24,13 @@ int strncmp(const char *a, const char *b, size_t n);
 #define __has_builtin(x) 0
 #endif
 
+#ifndef typeof
+#define typeof(x)   __typeof__(x)
+#endif
+
+#define CONTAINER_OF(ptr, type, field) \
+	((type *)((char *)ptr - offsetof(type, field)))
+
 /**
  * Check whether the value `v` is aligned to the boundary `a`,
  * with `a` power of 2.
@@ -33,6 +40,8 @@ int strncmp(const char *a, const char *b, size_t n);
 #else
 #define is_aligned(v, a) (((uintptr_t)(v) & ((a)-1)) == 0)
 #endif
+
+#define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 
 /**
  * Align up the value `v` to the boundary `a`, with `a` power of 2.

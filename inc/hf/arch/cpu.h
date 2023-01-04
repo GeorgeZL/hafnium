@@ -25,6 +25,8 @@
  */
 void arch_regs_reset(struct vcpu *vcpu);
 
+void vcpu_dump_sysarch(struct vcpu *vcpu);
+
 /**
  * Updates the given registers so that when a vCPU runs, it starts off at the
  * given address (pc) with the given argument.

@@ -59,12 +59,42 @@ struct interrupts {
 	uint32_t enabled_and_pending_fiq_count;
 };
 
+#define ESR_ISS(esr)		((esr) & ((1 << 25) - 1))
+#define ISS_ISV(iss)		((iss) >> 24 & 0x1)
+#define DAT_ISS_ISV_VAL		0x1
+
+#define ISS_SAS(iss)		((iss) >> 22 & 0x3)
+#define DAT_ISS_SAS_BYTE	0x0
+#define DAT_ISS_SAS_HALF	0x1
+#define DAT_ISS_SAS_WORD	0x2
+#define DAT_ISS_SAS_DOUBLE	0x3
+
+#define ISS_SSE(iss)		((iss) >> 21 & 0x1)
+#define DAT_ISS_SSE_SIGN	0x1
+
+#define ISS_SRT(iss)		((iss) >> 16 & 0x1f)
+
+#define ISS_SF(iss)		((iss) >> 15 & 0x1)
+#define DAT_ISS_SF_64B		0x1
+
+#define ISS_WNR(iss)		((iss) >> 6 & 0x1)
+#define DAT_ISS_WNR_WR		0x1
+
 struct vcpu_fault_info {
 	ipaddr_t ipaddr;
 	vaddr_t vaddr;
 	vaddr_t pc;
 	uint32_t mode;
+
+	uint32_t isv:1;
+	uint32_t sas:2;
+	uint32_t sse:1;
+	uint32_t sf:1;
+	uint32_t wnr:1;
+	uint32_t srt:5;
 };
+
+typedef struct vcpu_fault_info MMIOInfo_t;
 
 struct vcpu {
 	struct spinlock lock;
@@ -152,6 +182,9 @@ struct two_vcpu_locked {
 	struct vcpu_locked vcpu2;
 };
 
+struct vcpu *current(void);
+struct vm *current_vm(void);
+
 struct vcpu_locked vcpu_lock(struct vcpu *vcpu);
 struct two_vcpu_locked vcpu_lock_both(struct vcpu *vcpu1, struct vcpu *vcpu2);
 void vcpu_unlock(struct vcpu_locked *locked);
@@ -162,7 +195,7 @@ bool vcpu_is_off(struct vcpu_locked vcpu);
 bool vcpu_secondary_reset_and_start(struct vcpu_locked vcpu_locked,
 				    ipaddr_t entry, uintreg_t arg);
 
-bool vcpu_handle_page_fault(const struct vcpu *current,
+bool vcpu_handle_page_fault(struct vcpu *current,
 			    struct vcpu_fault_info *f);
 
 void vcpu_reset(struct vcpu *vcpu);

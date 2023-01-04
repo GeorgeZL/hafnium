@@ -29,7 +29,7 @@ static bool mpool_locks_enabled = false;
  */
 void mpool_enable_locks(void)
 {
-	mpool_locks_enabled = true;
+	mpool_locks_enabled = false;
 }
 
 /**

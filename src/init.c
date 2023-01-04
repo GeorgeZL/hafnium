@@ -31,6 +31,8 @@
 #include "hf/plat/iommu.h"
 #include "hf/std.h"
 #include "hf/vm.h"
+#include "hf/device/gic.h"
+#include "hf/device/vdev.h"
 
 #include "vmapi/hf/call.h"
 
@@ -66,6 +68,42 @@ void one_time_init_mm(void)
 	}
 }
 
+static void dump_cpu_info(struct boot_params *p)
+{
+	dlog_info("CPU IDS: \n");
+	for (int i = 0; i < MAX_CPUS && i < p->cpu_count; i++) {
+		dlog_info("\tcpu-%d: 0x%08x\n", i, p->cpu_ids[i]);
+	}
+}
+
+static void dump_mem_info(struct boot_params *p)
+{
+	dlog_info("Memory infos: \n");
+	for (int i = 0; i < MAX_MEM_RANGES && i < p->mem_ranges_count; i++) {
+		dlog_info("\tmemory block %d: 0x%08x - 0x%08x\n", 
+				i, p->mem_ranges[i].begin.pa, p->mem_ranges[i].end.pa);
+	}
+}
+
+static void dump_device_mem_info(struct boot_params *p)
+{
+	dlog_info("Device memory infos: \n");
+	for (int i = 0; i < MAX_DEVICE_MEM_RANGES && i < p->device_mem_ranges_count; i++) {
+		dlog_info("\tmemory block %d: 0x%08x - 0x%08x\n", 
+				i, p->device_mem_ranges[i].begin.pa, p->device_mem_ranges[i].end.pa);
+	}
+}
+
+static void boot_param_dumps(struct boot_params *p)
+{
+	dlog_info("=============Boot information: ==============\n");
+	dump_cpu_info(p);
+	dump_mem_info(p);
+	dump_device_mem_info(p);
+	dlog_info("initrd info: 0x%08x - 0x%08x\n", p->initrd_begin.pa, p->initrd_end.pa);
+	dlog_info("dts address: 0x%08x\n", p->kernel_arg);
+}
+
 /**
  * Performs one-time initialisation of the hypervisor.
  */
@@ -82,23 +120,32 @@ void one_time_init(void)
 	size_t i;
 	struct mm_stage1_locked mm_stage1_locked;
 
+
+    dlog_info("%s\n", __func__);
+
 	arch_one_time_init();
 
 	/* Enable locks now that mm is initialised. */
 	dlog_enable_lock();
 	mpool_enable_locks();
 
+    dlog_info("mm lock \n");
 	mm_stage1_locked = mm_lock_stage1();
 
+	mm_vm_dump(mm_stage1_locked.ptable);
+
+    dlog_info("fdt map\n");
 	if (!fdt_map(&fdt, mm_stage1_locked, plat_boot_flow_get_fdt_addr(),
 		     &ppool)) {
 		panic("Unable to map FDT.");
 	}
 
+    dlog_info("get boot params\n");
 	if (!boot_flow_get_params(&params, &fdt)) {
 		panic("Could not parse boot params.");
 	}
 
+	boot_param_dumps(&params);
 	for (i = 0; i < params.mem_ranges_count; ++i) {
 		dlog_info("Memory range:  %#x - %#x\n",
 			  pa_addr(params.mem_ranges[i].begin),
@@ -143,6 +190,7 @@ void one_time_init(void)
 		      manifest_strerror(manifest_ret));
 	}
 
+#if 0
 	if (!plat_iommu_init(&fdt, mm_stage1_locked, &ppool)) {
 		panic("Could not initialize IOMMUs.");
 	}
@@ -150,6 +198,7 @@ void one_time_init(void)
 	if (!fdt_unmap(&fdt, mm_stage1_locked, &ppool)) {
 		panic("Unable to unmap FDT.");
 	}
+#endif
 
 	cpu_module_init(params.cpu_ids, params.cpu_count);
 
@@ -171,6 +220,9 @@ void one_time_init(void)
 	}
 
 	mm_defrag(mm_stage1_locked, &ppool);
+
+	//mm_vm_dump(mm_stage1_locked.ptable);
+
 	mm_unlock_stage1(&mm_stage1_locked);
 
 	/* Initialise the API page pool. ppool will be empty from now on. */
@@ -181,6 +233,8 @@ void one_time_init(void)
 
 	/* Perform platform specfic FF-A initialization. */
 	plat_ffa_init(manifest.ffa_tee_enabled);
+
+    dlog_info("%s done\n", __func__);
 
 	dlog_info("Hafnium initialisation completed\n");
 }

@@ -36,7 +36,8 @@ void vdlog(const char *fmt, va_list args);
 #endif
 
 #if LOG_LEVEL >= LOG_LEVEL_NOTICE
-#define dlog_notice(...) dlog("NOTICE: " __VA_ARGS__)
+#define dlog_notice(...)
+//#define dlog_notice(...) dlog("NOTICE: " __VA_ARGS__)
 #else
 #define dlog_notice(...)
 #endif
@@ -60,3 +61,5 @@ void vdlog(const char *fmt, va_list args);
 #endif
 
 void dlog_flush_vm_buffer(ffa_vm_id_t id, char buffer[], size_t length);
+
+void test_put_C(char c);

@@ -23,6 +23,7 @@
 #define MAX_SMCS 32
 #define LOG_BUFFER_SIZE 256
 #define VM_MANIFEST_MAX_INTERRUPTS 32
+#define MAX_VDEV_COUNT  10
 
 /**
  * The state of an RX buffer.
@@ -178,6 +179,9 @@ struct vm {
 	struct mm_ptable ptable;
 	struct mailbox mailbox;
 
+	/** vdev **/
+	struct list_entry vdev_list;
+
 	struct {
 		/**
 		 * State structures for notifications coming from VMs or coming
@@ -321,3 +325,4 @@ void vm_notifications_set_npi_injected(struct vm_locked vm_locked,
 				       bool npi_injected);
 bool vm_notifications_is_npi_injected(struct vm_locked vm_locked);
 void vm_set_boot_info_gp_reg(struct vm *vm, struct vcpu *vcpu);
+struct vcpu *vm_get_vcpu_with_cpu(struct vm *vm, struct cpu *cpu);

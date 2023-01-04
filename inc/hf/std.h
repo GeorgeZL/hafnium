@@ -10,6 +10,8 @@
 
 #include "hf/arch/std.h"
 
+#define UNUSED __attribute__((unused))
+
 typedef size_t rsize_t;
 
 /**

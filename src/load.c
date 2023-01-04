@@ -29,6 +29,10 @@
 #include "hf/static_assert.h"
 #include "hf/std.h"
 #include "hf/vm.h"
+#include "hf/device/gic.h"
+#include "hf/device/vdev.h"
+#include "hf/interrupt.h"
+#include "hf/dlog.h"
 
 #include "vmapi/hf/call.h"
 #include "vmapi/hf/ffa.h"
@@ -295,7 +299,7 @@ static bool load_primary(struct mm_stage1_locked stage1_locked,
 		}
 	}
 
-	if (!vm_init_next(MAX_CPUS, ppool, &vm, false)) {
+	if (!vm_init_next(manifest_vm->vcpu_count, ppool, &vm, false)) {
 		dlog_error("Unable to initialise primary VM.\n");
 		return false;
 	}
@@ -373,6 +377,10 @@ static bool load_primary(struct mm_stage1_locked stage1_locked,
 		goto out;
 	}
 
+    mm_vm_dump(stage1_locked.ptable);
+
+	virtual_device_init(vm_locked.vm, ppool);
+
 	dlog_info("Loaded primary VM with %u vCPUs, entry at %#x.\n",
 		  vm->vcpu_count, pa_addr(primary_begin));
 
@@ -385,6 +393,8 @@ static bool load_primary(struct mm_stage1_locked stage1_locked,
 	ret = true;
 
 out:
+	dlog_error("--->>>>Dump primary S2 page table:\n");
+
 	vm_unlock(&vm_locked);
 
 	return ret;
@@ -444,6 +454,60 @@ static bool load_secondary_fdt(struct mm_stage1_locked stage1_locked,
 	return true;
 }
 
+/**
+ * Loads the secondary VM's FDT.
+ * Stores the total allocated size for the FDT in fdt_allocated_size (if
+ * fdt_allocated_size is not NULL). The allocated size includes additional space
+ * for potential patching.
+ */
+static bool load_secondary_ramdisk(struct mm_stage1_locked stage1_locked,
+			       paddr_t end, size_t ramdisk_max_size,
+			       const struct manifest_vm *manifest_vm,
+			       const struct memiter *cpio, struct mpool *ppool,
+			       paddr_t *ramdisk_addr, size_t *ramdisk_allocated_size)
+{
+	struct memiter ramdisk;
+	size_t allocated_size;
+
+	CHECK(!string_is_empty(&manifest_vm->secondary.ramdisk_filename));
+
+	if (!cpio_get_file(cpio, &manifest_vm->secondary.ramdisk_filename, &ramdisk)) {
+		dlog_error("Cannot open the secondary VM's Ramdisk.\n");
+		return false;
+	}
+
+	/*
+	 * Ensure the FDT has one additional page at the end for patching,
+	 * and align it to the page boundary.
+	 */
+	allocated_size = align_up(memiter_size(&ramdisk) + SIZE_1MB, SIZE_1MB);
+
+	if (allocated_size > ramdisk_max_size) {
+		dlog_error(
+			"RAMDISK allocated space (%u) is more than the specified "
+			"maximum to use (%u).\n",
+			allocated_size, ramdisk_max_size);
+		return false;
+	}
+
+	/* Load the FDT to the end of the VM's allocated memory space. */
+	*ramdisk_addr = pa_init(pa_addr(pa_sub(end, allocated_size)));
+
+	dlog_info("Loading secondary RAMDISK of allocated size 0x%x at 0x%x.\n",
+		  allocated_size, pa_addr(*ramdisk_addr));
+
+	if (!copy_to_unmapped(stage1_locked, *ramdisk_addr, &ramdisk, ppool)) {
+		dlog_error("Unable to copy RMADISK.\n");
+		return false;
+	}
+
+	if (ramdisk_allocated_size) {
+		*ramdisk_allocated_size = allocated_size;
+	}
+
+	return true;
+}
+
 /*
  * Loads a secondary VM.
  */
@@ -458,6 +522,7 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 	struct vcpu_locked vcpu_locked;
 	struct vcpu *vcpu;
 	ipaddr_t secondary_entry;
+	paddr_t boot_mem_addr;
 	bool ret;
 	paddr_t fdt_addr;
 	bool has_fdt;
@@ -471,8 +536,11 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 	 * the partition package has already been loaded prior to Hafnium
 	 * booting.
 	 */
+	boot_mem_addr = pa_init(
+		align_up(pa_addr(mem_begin), LINUX_ALIGNMENT) + LINUX_OFFSET);
+
 	if (!string_is_empty(&manifest_vm->kernel_filename)) {
-		if (!load_kernel(stage1_locked, mem_begin, mem_end, manifest_vm,
+		if (!load_kernel(stage1_locked, boot_mem_addr, mem_end, manifest_vm,
 				 cpio, ppool, &kernel_size)) {
 			dlog_error("Unable to load kernel.\n");
 			return false;
@@ -490,10 +558,21 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 
 		size_t fdt_allocated_size;
 
+		const size_t ramdisk_max_size = SIZE_1MB * 128;
+		size_t ramdisk_allocated_size;
+		paddr_t ramdisk_addr;
+
 		if (!load_secondary_fdt(stage1_locked, mem_end, fdt_max_size,
 					manifest_vm, cpio, ppool, &fdt_addr,
 					&fdt_allocated_size)) {
 			dlog_error("Unable to load FDT.\n");
+			return false;
+		}
+
+		if (!load_secondary_ramdisk(stage1_locked, mem_end, ramdisk_max_size,
+					manifest_vm, cpio, ppool, &ramdisk_addr,
+					&ramdisk_allocated_size)) {
+			dlog_error("Unable to load RAMDISK.\n");
 			return false;
 		}
 
@@ -514,9 +593,9 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 	 * FF-A 1.0 spec.
 	 */
 	CHECK(manifest_vm->partition.run_time_el != S_EL0 ||
-	      manifest_vm->secondary.vcpu_count == 1);
+	      manifest_vm->vcpu_count == 1);
 
-	if (!vm_init_next(manifest_vm->secondary.vcpu_count, ppool, &vm,
+	if (!vm_init_next(manifest_vm->vcpu_count, ppool, &vm,
 			  (manifest_vm->partition.run_time_el == S_EL0))) {
 		dlog_error("Unable to initialise VM.\n");
 		return false;
@@ -541,6 +620,15 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 	if (!vm_identity_map(vm_locked, mem_begin, mem_end, map_mode, ppool,
 			     &secondary_entry)) {
 		dlog_error("Unable to initialise memory.\n");
+		ret = false;
+		goto out;
+	}
+
+	/* map the device region */
+	if (!vm_identity_map(vm_locked, pa_init(0), pa_init(0x80000000),
+		MM_MODE_R | MM_MODE_W | MM_MODE_D, ppool, NULL)) {
+		dlog_error(
+			"Unable to initialise address space for Secondary VM.\n");
 		ret = false;
 		goto out;
 	}
@@ -684,6 +772,9 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 					  manifest_vm->partition.ep_offset);
 	}
 
+	secondary_entry = ipa_init(
+			align_up(pa_addr(pa_from_ipa(secondary_entry)), LINUX_ALIGNMENT) + LINUX_OFFSET);
+
 	/*
 	 * Map hypervisor into the VM's page table. The hypervisor pages will
 	 * not be accessible from EL0 since it will not be marked for user
@@ -717,7 +808,7 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 	}
 
 	dlog_info("Loaded with %u vCPUs, entry at %#x.\n",
-		  manifest_vm->secondary.vcpu_count, pa_addr(mem_begin));
+		  manifest_vm->vcpu_count, ipa_addr(secondary_entry));
 
 	vcpu = vm_get_vcpu(vm, 0);
 
@@ -734,6 +825,13 @@ static bool load_secondary(struct mm_stage1_locked stage1_locked,
 		vcpu_secondary_reset_and_start(vcpu_locked, secondary_entry,
 					       mem_size);
 	}
+
+	gic_secondary_init();
+
+	virtual_device_init(vm_locked.vm, ppool);
+
+	dlog_warning("Secondary VM context info:\n");
+	vcpu_dump_sysarch(vcpu_locked.vcpu);
 
 	vcpu_unlock(&vcpu_locked);
 
@@ -774,6 +872,7 @@ static bool carve_out_mem_range(struct mem_range *mem_ranges,
 			return true;
 		}
 	}
+
 	return false;
 }
 
@@ -846,6 +945,17 @@ static bool init_other_world_vm(struct mpool *ppool)
 	return arch_other_world_vm_init(other_world_vm, ppool);
 }
 
+static void update_hwirq_config(
+    const struct manifest_vm *manifest, ffa_vm_id_t vm_id)
+{
+    uint32_t index = 0;
+    const struct partition_manifest *partition = &manifest->partition;
+
+    for (index = 0; index < partition->irq_count; index++) {
+        vm_hwirq_add(partition->irqs_map[index], vm_id);
+    }
+}
+
 /*
  * Loads alls VMs from the manifest.
  */
@@ -901,6 +1011,8 @@ bool load_vms(struct mm_stage1_locked stage1_locked,
 		uint64_t mem_size;
 		paddr_t secondary_mem_begin;
 		paddr_t secondary_mem_end;
+
+        update_hwirq_config(manifest_vm, vm_id);
 
 		if (vm_id == HF_PRIMARY_VM_ID) {
 			continue;

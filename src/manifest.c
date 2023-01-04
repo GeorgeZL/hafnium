@@ -38,6 +38,73 @@ static_assert((HF_OTHER_WORLD_ID > VM_ID_MAX) ||
 		      (HF_OTHER_WORLD_ID < HF_VM_ID_BASE),
 	      "TrustZone VM ID clashes with normal VM range.");
 
+static enum manifest_return_code parse_ffa_memory_region_node(
+	struct fdt_node *mem_node, struct memory_region *mem_regions,
+	uint8_t *count, struct rx_tx *rxtx);
+
+static enum manifest_return_code parse_ffa_device_region_node(
+	struct fdt_node *dev_node, struct device_region *dev_regions,
+	uint8_t *count);
+
+static void partition_manifest_dump(const struct partition_manifest *partition)
+{
+    dlog_info("\tffa version: 0x%08x\n", partition->ffa_version);
+    dlog_info("\tuuid: %08x-%08x-%08x-%08x\n",
+        partition->uuid.uuid[0], partition->uuid.uuid[1], partition->uuid.uuid[2], partition->uuid.uuid[3]);
+    dlog_info("\tffa vmid: 0x%08x\n", partition->id);
+    dlog_info("\tvcpu count: 0x%08x\n", partition->execution_ctx_count);
+    dlog_info("\truntime el: 0x%x\n", partition->run_time_el);
+    dlog_info("\tload addr: 0x%08x\n", partition->load_addr);
+    dlog_info("\tep offset: 0x%08x\n", partition->ep_offset);
+    dlog_info("\tboot_info: %d\n", partition->boot_info);
+    dlog_info("\tboot order: 0x%x\n", partition->boot_order);
+    dlog_info("\tmemory block count: %d\n", partition->mem_region_count);
+    dlog_info("\tdevice block count: %d\n", partition->dev_region_count);
+
+    for (int i = 0; i < SP_MAX_MEMORY_REGIONS && i < partition->mem_region_count; i++) {
+        dlog_info("\tmemory block-%d(%s): 0x%08x : 0x%08x, attr: 0x%08x\n", i, \
+            partition->mem_regions[i].name.data, partition->mem_regions[i].base_address, \
+            partition->mem_regions[i].page_count, partition->mem_regions[i].attributes);
+    }
+
+    for (int i = 0; i < SP_MAX_MEMORY_REGIONS && i < partition->dev_region_count; i++) {
+        dlog_info("\tdevice block-%d(%s): 0x%08x : 0x%08x, attr: 0x%08x\n", i, \
+            partition->dev_regions[i].name.data, partition->dev_regions[i].base_address, \
+            partition->dev_regions[i].page_count, partition->dev_regions[i].attributes);
+    }
+}
+
+static void hafnium_vm_dump(const struct manifest_vm *vm, int index)
+{
+    dlog_info("----------dump manifest for vm-%d-------------\n", index);
+    dlog_info("VM name: %s\n", vm->debug_name.data);
+    dlog_info("kernel name: %s\n", vm->kernel_filename.data);
+    if (index == HF_PRIMARY_VM_ID) {
+        dlog_info("ramdisk name: %s\n", vm->primary.ramdisk_filename.data);
+        dlog_info("boot addr: 0x%08x\n", vm->primary.boot_address);
+    } else {
+        dlog_info("ramdisk name: %s\n", vm->secondary.ramdisk_filename.data);
+        dlog_info("fdtfile name: %s\n", vm->secondary.fdt_filename);
+        dlog_info("initrd_address: 0x%08x\n", vm->secondary.initrd_address);
+        dlog_info("fdt_address: 0x%08x\n", vm->secondary.fdt_address);
+    }
+
+    partition_manifest_dump(&vm->partition);
+}
+
+void hafnium_manifest_dump(const struct manifest *manifest)
+{
+    const struct manifest_vm *vm = NULL;
+
+    for (int i = 0; i < manifest->vm_count; i++) {
+        vm = &manifest->vm[i];
+        hafnium_vm_dump(vm, i);
+        dlog_info("\n");
+    }
+}
+
+
+
 static inline size_t count_digits(ffa_vm_id_t vm_id)
 {
 	size_t digits = 0;
@@ -303,6 +370,8 @@ static enum manifest_return_code parse_vm_common(const struct fdt_node *node,
 						 ffa_vm_id_t vm_id)
 {
 	struct uint32list_iter smcs;
+	struct uint32list_iter irqs;
+    uint32_t hwirq;
 	size_t idx;
 
 	TRY(read_bool(node, "is_ffa_partition", &vm->is_ffa_partition));
@@ -311,6 +380,7 @@ static enum manifest_return_code parse_vm_common(const struct fdt_node *node,
 
 	TRY(read_string(node, "debug_name", &vm->debug_name));
 
+    /* smc */
 	TRY(read_optional_uint32list(node, "smc_whitelist", &smcs));
 	while (uint32list_has_next(&smcs) &&
 	       vm->smc_whitelist.smc_count < MAX_SMCS) {
@@ -325,9 +395,19 @@ static enum manifest_return_code parse_vm_common(const struct fdt_node *node,
 	TRY(read_bool(node, "smc_whitelist_permissive",
 		      &vm->smc_whitelist.permissive));
 
+    /* irqs */
+    TRY(read_optional_uint32list(node, "interrupts", &irqs));
+    vm->partition.irq_count = 0;
+    while (uint32list_has_next(&irqs)) {
+        TRY(uint32list_get_next(&irqs, &hwirq));
+        dlog_error("irq: 0x%x\n", hwirq);
+        vm->partition.irqs_map[vm->partition.irq_count++] = hwirq;
+    }
+
+    /* cpus */
+    TRY(read_uint16(node, "vcpu_count", &vm->vcpu_count));
 	if (vm_id != HF_PRIMARY_VM_ID) {
 		TRY(read_uint64(node, "mem_size", &vm->secondary.mem_size));
-		TRY(read_uint16(node, "vcpu_count", &vm->secondary.vcpu_count));
 		TRY(read_optional_string(node, "fdt_filename",
 					 &vm->secondary.fdt_filename));
 	}
@@ -339,6 +419,10 @@ static enum manifest_return_code parse_vm(struct fdt_node *node,
 					  struct manifest_vm *vm,
 					  ffa_vm_id_t vm_id)
 {
+    struct fdt_node tmp_node;
+	struct string mem_region_node_name = STRING_INIT("memory-regions");
+	struct string dev_region_node_name = STRING_INIT("device-regions");
+
 	TRY(read_optional_string(node, "kernel_filename",
 				 &vm->kernel_filename));
 
@@ -348,10 +432,40 @@ static enum manifest_return_code parse_vm(struct fdt_node *node,
 		TRY(read_optional_uint64(node, "boot_address",
 					 MANIFEST_INVALID_ADDRESS,
 					 &vm->primary.boot_address));
-	}
+    } else {
+		TRY(read_optional_string(node, "ramdisk_filename",
+					 &vm->secondary.ramdisk_filename));
+        
+		TRY(read_optional_uint64(node, "initrd_address",
+					 MANIFEST_INVALID_ADDRESS,
+					 &vm->secondary.initrd_address));
+
+		TRY(read_optional_uint64(node, "fdt_address",
+					 MANIFEST_INVALID_ADDRESS,
+					 &vm->secondary.fdt_address));
+    }
 	TRY(read_optional_uint8(node, "exception-level", (uint8_t)EL1,
 				(uint8_t *)&vm->partition.run_time_el));
 
+    tmp_node = *node;
+	if (fdt_find_child(&tmp_node, &mem_region_node_name)) {
+		TRY(parse_ffa_memory_region_node(
+			&tmp_node, vm->partition.mem_regions,
+			&vm->partition.mem_region_count, &vm->partition.rxtx));
+	}
+	dlog_verbose("  Total %u memory regions found\n",
+		     vm->partition.mem_region_count);
+
+    tmp_node = *node;
+	if (fdt_find_child(&tmp_node, &dev_region_node_name)) {
+		TRY(parse_ffa_device_region_node(
+			&tmp_node, vm->partition.dev_regions,
+			&vm->partition.dev_region_count));
+	}
+	dlog_verbose("  Total %u device regions found\n",
+		     vm->partition.dev_region_count);
+
+    hafnium_vm_dump(vm, vm_id);
 	return MANIFEST_SUCCESS;
 }
 
@@ -362,7 +476,7 @@ static enum manifest_return_code parse_ffa_memory_region_node(
 	uint32_t phandle;
 	uint8_t i = 0;
 
-	dlog_verbose("  Partition memory regions\n");
+	dlog_info("  Partition memory regions\n");
 
 	if (!fdt_is_compatible(mem_node, "arm,ffa-manifest-memory-regions")) {
 		return MANIFEST_ERROR_NOT_COMPATIBLE;
@@ -373,22 +487,22 @@ static enum manifest_return_code parse_ffa_memory_region_node(
 	}
 
 	do {
-		dlog_verbose("    Memory Region[%u]\n", i);
+		dlog_info("    Memory Region[%u]\n", i);
 
 		TRY(read_optional_string(mem_node, "description",
 					 &mem_regions[i].name));
-		dlog_verbose("      Name: %s\n",
+		dlog_info("      Name: %s\n",
 			     string_data(&mem_regions[i].name));
 
 		TRY(read_optional_uint64(mem_node, "base-address",
 					 MANIFEST_INVALID_ADDRESS,
 					 &mem_regions[i].base_address));
-		dlog_verbose("      Base address:  %#x\n",
+		dlog_info("      Base address:  %#x\n",
 			     mem_regions[i].base_address);
 
 		TRY(read_uint32(mem_node, "pages-count",
 				&mem_regions[i].page_count));
-		dlog_verbose("      Pages_count:  %u\n",
+		dlog_info("      Pages_count:  %#x\n",
 			     mem_regions[i].page_count);
 
 		TRY(read_uint32(mem_node, "attributes",
@@ -397,11 +511,12 @@ static enum manifest_return_code parse_ffa_memory_region_node(
 
 		if (mem_regions[i].attributes != (MM_MODE_R) &&
 		    mem_regions[i].attributes != (MM_MODE_R | MM_MODE_W) &&
-		    mem_regions[i].attributes != (MM_MODE_R | MM_MODE_X)) {
+		    mem_regions[i].attributes != (MM_MODE_R | MM_MODE_X) &&
+		    mem_regions[i].attributes != (MM_MODE_R | MM_MODE_W | MM_MODE_X)) {
 			return MANIFEST_ERROR_INVALID_MEM_PERM;
 		}
 
-		dlog_verbose("      Attributes:  %u\n",
+		dlog_info("      Attributes:  %#x\n",
 			     mem_regions[i].attributes);
 
 		if (rxtx->available) {
@@ -438,7 +553,7 @@ static enum manifest_return_code parse_ffa_device_region_node(
 	uint8_t i = 0;
 	uint32_t j = 0;
 
-	dlog_verbose("  Partition Device Regions\n");
+	dlog_info("  Partition Device Regions\n");
 
 	if (!fdt_is_compatible(dev_node, "arm,ffa-manifest-device-regions")) {
 		return MANIFEST_ERROR_NOT_COMPATIBLE;
@@ -449,21 +564,21 @@ static enum manifest_return_code parse_ffa_device_region_node(
 	}
 
 	do {
-		dlog_verbose("    Device Region[%u]\n", i);
+		dlog_info("    Device Region[%u]\n", i);
 
 		TRY(read_optional_string(dev_node, "description",
 					 &dev_regions[i].name));
-		dlog_verbose("      Name: %s\n",
+		dlog_info("      Name: %s\n",
 			     string_data(&dev_regions[i].name));
 
 		TRY(read_uint64(dev_node, "base-address",
 				&dev_regions[i].base_address));
-		dlog_verbose("      Base address:  %#x\n",
+		dlog_info("      Base address:  %#x\n",
 			     dev_regions[i].base_address);
 
 		TRY(read_uint32(dev_node, "pages-count",
 				&dev_regions[i].page_count));
-		dlog_verbose("      Pages_count:  %u\n",
+		dlog_info("      Pages_count:  %#x\n",
 			     dev_regions[i].page_count);
 
 		TRY(read_uint32(dev_node, "attributes",
@@ -477,11 +592,11 @@ static enum manifest_return_code parse_ffa_device_region_node(
 			return MANIFEST_ERROR_INVALID_MEM_PERM;
 		}
 
-		dlog_verbose("      Attributes:  %u\n",
+		dlog_info("      Attributes:  %#x\n",
 			     dev_regions[i].attributes);
 
 		TRY(read_optional_uint32list(dev_node, "interrupts", &list));
-		dlog_verbose("      Interrupt List:\n");
+		dlog_info("      Interrupt List:\n");
 		j = 0;
 		while (uint32list_has_next(&list) &&
 		       j < SP_MAX_INTERRUPTS_PER_DEVICE) {
@@ -496,7 +611,7 @@ static enum manifest_return_code parse_ffa_device_region_node(
 				return MANIFEST_ERROR_MALFORMED_INTEGER_LIST;
 			}
 
-			dlog_verbose("        ID = %u, attributes = %u\n",
+			dlog_info("        ID = %u, attributes = %u\n",
 				     dev_regions[i].interrupts[j].id,
 				     dev_regions[i].interrupts[j].attributes);
 			j++;
@@ -504,7 +619,7 @@ static enum manifest_return_code parse_ffa_device_region_node(
 
 		dev_regions[i].interrupt_count = j;
 		if (j == 0) {
-			dlog_verbose("        Empty\n");
+			dlog_info("        Empty\n");
 		}
 
 		TRY(read_optional_uint32(dev_node, "smmu-id",
@@ -994,3 +1109,5 @@ const char *manifest_strerror(enum manifest_return_code ret_code)
 
 	panic("Unexpected manifest return code.");
 }
+
+

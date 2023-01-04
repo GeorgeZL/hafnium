@@ -9,6 +9,7 @@
 #include "hf/vcpu.h"
 
 #include "hf/arch/cpu.h"
+#include "hf/device/vdev.h"
 
 #include "hf/check.h"
 #include "hf/dlog.h"
@@ -133,7 +134,46 @@ bool vcpu_secondary_reset_and_start(struct vcpu_locked vcpu_locked,
  * Returns true if the caller should resume the current vCPU, or false if its VM
  * should be aborted.
  */
-bool vcpu_handle_page_fault(const struct vcpu *current,
+static void set_reg_value(
+	struct vcpu *current, struct vcpu_fault_info *f, uint64_t value)
+{
+	/* TODO: return check registers */
+	current->regs.r[f->srt] = value;
+}
+
+static bool vcpu_handle_vdev_emulation(struct vcpu *current, struct vcpu_fault_info *f)
+{
+	int write = (f->mode & MM_MODE_W) ? 1 : 0;
+	uint32_t value = 0;
+	int retval = -EINVAL;
+
+	if (f->isv == DAT_ISS_ISV_VAL) {
+		/* TODO: alignment check */
+
+        if (f->wnr == DAT_ISS_WNR_WR) {
+            value = (f->srt > 30) ? 0x0 : current->regs.r[f->srt];
+            retval = vdev_mmio_emulation(
+                    current, f, write, (1 << (0xff & f->sas)), f->ipaddr.ipa, &value);
+        } else {
+            retval = vdev_mmio_emulation(
+                    current, f, write, (1 << (0xff & f->sas)), f->ipaddr.ipa, &value);
+            if (retval == 0) {
+                set_reg_value(current, f, value);
+            }
+        }
+
+        if (retval) {
+            dlog_error("Failed to '%s' address '0x%x'\n",
+                f->wnr ? "write" : "read", f->ipaddr.ipa);
+        }
+	}
+
+	current->regs.pc += 4;
+
+	return retval ? false : true;
+}
+
+bool vcpu_handle_page_fault(struct vcpu *current,
 			    struct vcpu_fault_info *f)
 {
 	struct vm *vm = current->vm;
@@ -154,7 +194,9 @@ bool vcpu_handle_page_fault(const struct vcpu *current,
 	 * ensured that the invalidations have completed.)
 	 */
 	if (!locked_vm.vm->el0_partition) {
-		resume = vm_mem_get_mode(locked_vm, f->ipaddr,
+		resume = vcpu_handle_vdev_emulation(current, f);
+		if (!resume)
+			resume = vm_mem_get_mode(locked_vm, f->ipaddr,
 					 ipa_add(f->ipaddr, 1), &mode) &&
 			 (mode & mask) == f->mode;
 	} else {
@@ -189,6 +231,7 @@ bool vcpu_handle_page_fault(const struct vcpu *current,
 			vcpu_index(current), f->vaddr, f->ipaddr, f->mode,
 			mode);
 	}
+
 
 	return resume;
 }

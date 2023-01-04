@@ -1,0 +1,234 @@
+#pragma once
+
+#define NR_GIC_LOCAL_IRQS  NR_LOCAL_IRQS
+#define NR_GIC_SGI         16
+
+#define GICD_CTLR       	(0x000)
+#define GICD_TYPER      	(0x004)
+#define GICD_IIDR       	(0x008)
+#define GICD_IGROUPR    	(0x080)
+#define GICD_IGROUPRN   	(0x0FC)
+#define GICD_ISENABLER  	(0x100)
+#define GICD_ISENABLERN 	(0x17C)
+#define GICD_ICENABLER  	(0x180)
+#define GICD_ICENABLERN 	(0x1fC)
+#define GICD_ISPENDR    	(0x200)
+#define GICD_ISPENDRN   	(0x27C)
+#define GICD_ICPENDR    	(0x280)
+#define GICD_ICPENDRN   	(0x2FC)
+#define GICD_ISACTIVER  	(0x300)
+#define GICD_ISACTIVERN 	(0x37C)
+#define GICD_ICACTIVER  	(0x380)
+#define GICD_ICACTIVERN 	(0x3FC)
+#define GICD_IPRIORITYR 	(0x400)
+#define GICD_IPRIORITYRN 	(0x7F8)
+#define GICD_ITARGETSR  	(0x800)
+#define GICD_ITARGETSR7 	(0x81C)
+#define GICD_ITARGETSR8 	(0x820)
+//#define GICD_ITARGETSR      GICD_ITARGETSR8
+#define GICD_ITARGETSRN 	(0xBF8)
+#define GICD_ICFGR      	(0xC00)
+#define GICD_ICFGR1     	(0xC04)
+#define GICD_ICFGR2     	(0xC08)
+#define GICD_ICFGRN     	(0xCFC)
+#define GICD_NSACR      	(0xE00)
+#define GICD_NSACRN     	(0xEFC)
+#define GICD_SGIR       	(0xF00)
+#define GICD_CPENDSGIR  	(0xF10)
+#define GICD_CPENDSGIRN 	(0xF1C)
+#define GICD_SPENDSGIR  	(0xF20)
+#define GICD_SPENDSGIRN 	(0xF2C)
+#define GICD_ICPIDR2    	(0xFE8)
+
+#define GICD_SGI_TARGET_LIST_SHIFT   (24)
+#define GICD_SGI_TARGET_LIST_MASK    (0x3UL << GICD_SGI_TARGET_LIST_SHIFT)
+#define GICD_SGI_TARGET_SHIFT        (16)
+#define GICD_SGI_TARGET_MASK         (0xFFUL << GICD_SGI_TARGET_SHIFT)
+#define GICD_SGI_GROUP1              (1UL << 15)
+#define GICD_SGI_INTID_MASK          (0xFUL)
+#define GICD_SGI_TARGET_OTHERS       (1UL << GICD_SGI_TARGET_LIST_SHIFT)
+#define GICD_SGI_TARGET_SELF         (2UL << GICD_SGI_TARGET_LIST_SHIFT)
+#define GICD_SGI_TARGET_LIST         (0UL << GICD_SGI_TARGET_LIST_SHIFT)
+
+#define GICC_CTLR       	(0x0000)
+#define GICC_PMR        	(0x0004)
+#define GICC_BPR        	(0x0008)
+#define GICC_IAR        	(0x000C)
+#define GICC_EOIR       	(0x0010)
+#define GICC_RPR        	(0x0014)
+#define GICC_HPPIR      	(0x0018)
+#define GICC_APR        	(0x00D0)
+#define GICC_NSAPR      	(0x00E0)
+#define GICC_IIDR       	(0x00FC)
+#define GICC_DIR        	(0x1000)
+
+#define GICH_HCR        	(0x00)
+#define GICH_VTR        	(0x04)
+#define GICH_VMCR       	(0x08)
+#define GICH_MISR       	(0x10)
+#define GICH_EISR0      	(0x20)
+#define GICH_EISR1      	(0x24)
+#define GICH_ELSR0      	(0x30)
+#define GICH_ELSR1      	(0x34)
+#define GICH_APR        	(0xF0)
+#define GICH_LR         	(0x100)
+
+/* Register bits */
+#define GICD_CTL_ENABLE 	0x1
+
+#define GICD_TYPE_LINES 	0x01f
+#define GICD_TYPE_CPUS_SHIFT 	5
+#define GICD_TYPE_CPUS  	0x0e0
+#define GICD_TYPE_SEC   	0x400
+#define GICD_TYPER_DVIS 	(1U << 18)
+
+#define GICC_CTL_ENABLE 	0x1
+#define GICC_CTL_EOI    	(0x1 << 9)
+
+#define GICC_IA_IRQ       	0x03ff
+#define GICC_IA_CPU_MASK  	0x1c00
+#define GICC_IA_CPU_SHIFT 	10
+
+#define GICH_HCR_EN       	(1 << 0)
+#define GICH_HCR_UIE      	(1 << 1)
+#define GICH_HCR_LRENPIE  	(1 << 2)
+#define GICH_HCR_NPIE     	(1 << 3)
+#define GICH_HCR_VGRP0EIE 	(1 << 4)
+#define GICH_HCR_VGRP0DIE 	(1 << 5)
+#define GICH_HCR_VGRP1EIE 	(1 << 6)
+#define GICH_HCR_VGRP1DIE 	(1 << 7)
+
+#define GICH_MISR_EOI     	(1 << 0)
+#define GICH_MISR_U       	(1 << 1)
+#define GICH_MISR_LRENP   	(1 << 2)
+#define GICH_MISR_NP      	(1 << 3)
+#define GICH_MISR_VGRP0E  	(1 << 4)
+#define GICH_MISR_VGRP0D  	(1 << 5)
+#define GICH_MISR_VGRP1E  	(1 << 6)
+#define GICH_MISR_VGRP1D  	(1 << 7)
+
+#define INVALID_INTRID      0xffffffff
+
+/*
+ * The minimum GICC_BPR is required to be in the range 0-3. We set
+ * GICC_BPR to 0 but we must expect that it might be 3. This means we
+ * can rely on premption between the following ranges:
+ * 0xf0..0xff
+ * 0xe0..0xdf
+ * 0xc0..0xcf
+ * 0xb0..0xbf
+ * 0xa0..0xaf
+ * 0x90..0x9f
+ * 0x80..0x8f
+ *
+ * Priorities within a range will not preempt each other.
+ *
+ * A GIC must support a mimimum of 16 priority levels.
+ */
+#define GIC_PRI_LOWEST     	0xf0
+#define GIC_PRI_IRQ        	0xa0
+#define GIC_PRI_IPI        	0x90 /* IPIs must preempt normal interrupts */
+#define GIC_PRI_HIGHEST    	0x80 /* Higher priorities belong to Secure-World */
+#define GIC_PRI_TO_GUEST(pri) 	(pri >> 3) /* GICH_LR and GICH_VMCR only support
+                                            5 bits for guest irq priority */
+#define IRQ_FLAGS_NONE           		(0x00000000)
+#define IRQ_FLAGS_EDGE_RISING    		(0x00000001)
+#define IRQ_FLAGS_EDGE_FALLING  		(0x00000002)
+#define IRQ_FLAGS_LEVEL_HIGH     		(0x00000004)
+#define IRQ_FLAGS_LEVEL_LOW      		(0x00000008)
+#define IRQ_FLAGS_SENSE_MASK     		(0x0000000f)
+#define IRQ_FLAGS_INVALID        		(0x00000010)
+#define IRQ_FLAGS_EDGE_BOTH \
+    (IRQ_FLAGS_EDGE_FALLING | IRQ_FLAGS_EDGE_RISING)
+#define IRQ_FLAGS_LEVEL_BOTH \
+    (IRQ_FLAGS_LEVEL_LOW | IRQ_FLAGS_LEVEL_HIGH)
+#define IRQ_FLAGS_TYPE_MASK			(0x000000ff)
+
+void dump_registers(void);
+
+int gicv2_set_irq_affinity(uint32_t irq, uint32_t pcpu);
+void gicv2_mask_irq_cpu(uint32_t irq, int cpu);
+void gicv2_unmask_irq_cpu(uint32_t irq, int cpu);
+
+uint32_t gicv2_get_irq_group(uint32_t irq);
+void gicv2_set_irq_group(uint32_t irq, uint32_t group);
+uint32_t gicv2_irq_is_deactive(uint32_t irq);
+void gicv2_deactive_irq(uint32_t irq);
+void gicv2_set_irq_type(uint32_t irq, uint32_t type);
+uint32_t gicv2_get_irq_type(uint32_t irq);
+void gicv2_clear_irq_pending(uint32_t irq);
+uint32_t gicv2_get_clear_pending_state(uint32_t irq);
+uint32_t gicv2_get_irq_pending_state(uint32_t irq);
+void gicv2_set_irq_pending(uint32_t irq);
+uint8_t gicv2_get_irq_priority(uint32_t irq);
+void gicv2_set_irq_priority(uint32_t irq, uint32_t priority);
+void gicv2_sgi_set_conf(uint32_t conf);
+void gicv2_sgi_clear(uint32_t sgi, uint8_t mask);
+uint8_t gicv2_sgi_pending_state(uint32_t sgi);
+void gicv2_sgi_active(uint32_t sgi, uint8_t mask);
+uint8_t gicv2_sgi_get_active_state(uint32_t sgi);
+void gicv2_mask_irq(uint32_t irq);
+uint32_t gicv2_get_mask_irq(uint32_t irq);
+void gicv2_unmask_irq(uint32_t irq);
+uint32_t gicv2_get_irq_state(uint32_t irq);
+uint32_t gicv2_irq_is_active(uint32_t irq);
+void gicv2_active_irq(uint32_t irq);
+void gicv2_deactive_irq(uint32_t irq);
+uint8_t gicv2_get_irq_affinity(uint32_t irq);
+uint32_t gicv2_get_unmask_irq(uint32_t irq);
+
+
+int gicv2_init(void);
+int gicv2_secondary_init(void);
+
+void writeb_gicd(uint8_t val, unsigned int offset);
+void writew_gicd(uint16_t val, unsigned int offset);
+void writel_gicd(uint32_t val, unsigned int offset);
+void writeq_gicd(uint64_t val, unsigned int offset);
+
+uint8_t readb_gicd(unsigned int offset);
+uint16_t readw_gicd(unsigned int offset);
+uint32_t readl_gicd(unsigned int offset);
+uint64_t readq_gicd(unsigned int offset);
+
+uint32_t gicv2_get_ctrl(void);
+uint32_t gicv2_get_typer(void);
+uint32_t gicv2_get_iidr(void);
+
+#define DECLARE_IRQ_DEAL_FUNC(name)    \
+    uint32_t gicv2_vdev_get_##name(uint32_t irq, uint32_t offset, uint32_t size);   \
+    void gicv2_vdev_set_##name(uint32_t irq, uint32_t value, uint32_t offset, uint32_t size)
+
+DECLARE_IRQ_DEAL_FUNC(IGROUPR);
+DECLARE_IRQ_DEAL_FUNC(ISENABLER);
+DECLARE_IRQ_DEAL_FUNC(ICENABLER);
+DECLARE_IRQ_DEAL_FUNC(ISPENDR);
+DECLARE_IRQ_DEAL_FUNC(ICPENDR);
+DECLARE_IRQ_DEAL_FUNC(ISACTIVER);
+DECLARE_IRQ_DEAL_FUNC(ICACTIVER);
+DECLARE_IRQ_DEAL_FUNC(IPRIORITYR);
+DECLARE_IRQ_DEAL_FUNC(ITARGETSR);
+DECLARE_IRQ_DEAL_FUNC(ICFGR);
+DECLARE_IRQ_DEAL_FUNC(NSACR);
+
+uint32_t gicv2_get_direct(uint32_t reg, uint32_t size);
+void gicv2_set_direct(uint32_t reg, uint32_t value, uint32_t size);
+
+#undef DECLARE_IRQ_DEAL_FUNC
+
+struct gicv2_context {
+    uint32_t hcr;
+    uint32_t vmcr;
+    uint32_t apr;
+    uint32_t lr[64];
+};
+
+struct gich_lr {
+	uint32_t vid : 10;
+	uint32_t pid : 10;
+	uint32_t resv : 3;
+	uint32_t pr : 5;
+	uint32_t state : 2;
+	uint32_t grp1 : 1;
+	uint32_t hw : 1;
+};
